@@ -1,0 +1,4 @@
+{
+  "geminiApiKey": "test_demo_gemini_key_12345",
+  "geminiModel": "gemini-2.0-flash"
+}

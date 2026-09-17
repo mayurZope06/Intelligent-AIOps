@@ -1,0 +1,16 @@
+[
+  {
+    "incidentId": "INC-5032",
+    "action": "restart_pool",
+    "approvedBy": "Dr. Rahul Patil (Project Evaluator)",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "timestamp": "2026-09-17T18:39:51.201Z"
+  },
+  {
+    "incidentId": "INC-1001",
+    "action": "flush_dns",
+    "approvedBy": "SRE Operator",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "timestamp": "2026-09-17T17:40:03.254Z"
+  }
+]

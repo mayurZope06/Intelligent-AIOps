@@ -1,0 +1,131 @@
+[
+  {
+    "id": "INC-5032",
+    "title": "Payment service exceeded the maximum database pool capacity (100 active con...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "RESOLVED",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-17T18:39:51.193Z",
+    "resolvedAt": "2026-09-17T18:39:51.202Z",
+    "resolutionDurationSeconds": 5,
+    "resolutionNotes": "Remediation action 'restart_pool' approved by Dr. Rahul Patil (Project Evaluator) and executed successfully.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Critical database connection pool exhaustion in payment-service causing cascading 502/503 service failures up the gateway stack.",
+      "severity": "P1-Critical",
+      "probableRootCause": "Payment service exceeded the maximum database pool capacity (100 active connections). Inbound checkout transactions are timing out after 5000ms attempting to acquire a lease.",
+      "confidence": 96,
+      "confidenceReasoning": "Correlation between metric anomalies (gateway_checkout_errors_total, order_downstream_payment_errors_total, payment_db_errors_total, payment_active_connections) and service call chain graph confirms payment-service as the initial fault source with no deeper failing services.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "gateway-service",
+          "order-service"
+        ],
+        "impact": "Client checkout transaction failure rate elevated to 100%"
+      },
+      "alternativeCauses": [
+        "Transient network partition between Kubernetes cluster nodes",
+        "Downstream cloud provider gateway degradation"
+      ],
+      "supportingEvidence": [
+        "[Metric] gateway-service: gateway_checkout_errors_total = 1 (Gateway customer checkout errors: 1 5xx errors propagated to client.)",
+        "[Metric] order-service: order_downstream_payment_errors_total = 1 (Cascading downstream payment failures: 1 order checkout failures.)",
+        "[Metric] payment-service: payment_db_errors_total = 1 (Database connection errors detected: 1 errors recorded.)",
+        "[Metric] payment-service: payment_active_connections = 100 (Connection pool exhausted: 100/100 sockets utilized.)",
+        "[Log] gateway-service: \"Gateway 502/504 Bad Gateway: Upstream order-service call failed with HTTP 502\"",
+        "[Log] order-service: \"Cascading Failure: Order ORD-959858 failed because downstream payment-service returned HTTP 503\"",
+        "[Log] payment-service: \"MongoDB pool exhausted. AcquireConnection timed out after 5000ms [E_CONN_POOL_EXHAUSTED]\""
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Database Connection Pool Exhaustion",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-01): ## Immediate Remediation Steps (SOP-01)\n1. **Drain & Reset Connection Pool**: Flush zombie sockets on `payment-service` by triggering the pool reset hook:\n   - Command: `POST /api/..."
+      },
+      "timeline": [
+        {
+          "time": "12:09:50 am",
+          "service": "order-service",
+          "event": "Cascading Failure: Order ORD-959858 failed because downstream payment-service returned HTTP 503",
+          "type": "origin"
+        },
+        {
+          "time": "12:09:50 am",
+          "service": "payment-service",
+          "event": "MongoDB pool exhausted. AcquireConnection timed out after 5000ms [E_CONN_POOL_EXHAUSTED]",
+          "type": "cascade"
+        },
+        {
+          "time": "12:09:50 am",
+          "service": "gateway-service",
+          "event": "Gateway 502/504 Bad Gateway: Upstream order-service call failed with HTTP 502",
+          "type": "cascade"
+        },
+        {
+          "time": "12:09:51 am",
+          "service": "gateway-service",
+          "event": "Gateway customer checkout errors: 1 5xx errors propagated to client.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:09:51 am",
+          "service": "order-service",
+          "event": "Cascading downstream payment failures: 1 order checkout failures.",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Drain & Reset Database Connection Pool",
+        "description": "Flush active connection leases, reset socket pool to baseline 12 connections, and increase waitQueueTimeoutMS to avoid upstream thread blocking.",
+        "command": "POST /api/remediate { action: \"restart_pool\" }",
+        "actionType": "restart_pool",
+        "requiresHumanApproval": true
+      },
+      "provider": "Intelligent Semantic Causal Engine (Offline Fallback)"
+    },
+    "remediationAudit": {
+      "incidentId": "INC-5032",
+      "action": "restart_pool",
+      "approvedBy": "Dr. Rahul Patil (Project Evaluator)",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "timestamp": "2026-09-17T18:39:51.201Z"
+    }
+  },
+  {
+    "id": "INC-1001",
+    "title": "Intermittent Gateway Timeout under High Concurrency",
+    "description": "Checkout transactions failed on upstream order proxy due to connection queue buildup.",
+    "service": "gateway-service",
+    "severity": "P2-High",
+    "status": "RESOLVED",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-17T17:38:48.254Z",
+    "resolvedAt": "2026-09-17T17:40:03.254Z",
+    "resolutionDurationSeconds": 75,
+    "resolutionNotes": "Connection pool flushed and client read timeouts tuned.",
+    "notes": [
+      {
+        "id": "note-1",
+        "author": "SRE-Operator",
+        "text": "Detected elevated 504 Gateway Timeouts during flash checkout spike.",
+        "timestamp": "2026-09-17T17:39:08.254Z"
+      }
+    ],
+    "analysis": {
+      "incidentSummary": "Upstream gateway timeouts triggered by temporary network backlog.",
+      "probableRootCause": "Transient socket exhaustion under burst traffic.",
+      "confidence": 94,
+      "remediation": {
+        "title": "Flush Socket Pool & Reset Gateway Limits",
+        "actionType": "flush_dns"
+      }
+    },
+    "remediationAudit": {
+      "action": "flush_dns",
+      "approvedBy": "SRE Operator",
+      "timestamp": "2026-09-17T17:40:03.254Z",
+      "result": "REMEDIATED_AND_RECOVERED"
+    }
+  }
+]
