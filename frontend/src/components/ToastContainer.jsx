@@ -10,13 +10,15 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
       style={{
         position: 'fixed',
         top: 20,
-        right: 24,
+        left: '50%',
+        transform: 'translateX(-50%)',
         zIndex: 99999,
         display: 'flex',
         flexDirection: 'column',
+        alignItems: 'center',
         gap: 10,
-        maxWidth: 420,
-        width: '100%',
+        maxWidth: 460,
+        width: 'calc(100% - 32px)',
         pointerEvents: 'none'
       }}
     >
@@ -45,6 +47,7 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
             className="apple-toast-card animate-slide-in"
             style={{
               pointerEvents: 'auto',
+              width: '100%',
               display: 'flex',
               alignItems: 'flex-start',
               gap: 12,

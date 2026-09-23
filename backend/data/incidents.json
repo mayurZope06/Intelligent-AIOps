@@ -229,80 +229,40 @@
     "createdAt": "2026-09-23T18:59:57.570Z",
     "resolvedAt": null,
     "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolutionNotes": "Remediation action 'restart' approved by DevOps SRE Lead and executed successfully.",
     "notes": [],
     "analysis": {
-      "incidentSummary": "Service impairment detected originating in inventory-service. Telemetry shows: Distributed row lock deadlock on inventory SKU allocation table..",
+      "incidentSummary": "Service impairment detected originating in inventory-service. Telemetry shows: Service inventory-service is the deepest dependency exhibiting failure in t....",
       "severity": "P1-Critical",
-      "probableRootCause": "Service inventory-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Distributed row lock deadlock on inventory SKU allocation table..",
+      "probableRootCause": "Service inventory-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Service inventory-service is the deepest dependency exhibiting failure in t....",
       "confidence": 88,
       "confidenceReasoning": "Topological graph traversal identified inventory-service as upstream causal origin based on service dependency depth and failure propagation order.",
       "affectedServices": {
         "root": "inventory-service",
         "cascading": [
-          "order-service",
-          "gateway-service"
+          "gateway-service",
+          "order-service"
         ],
-        "impact": "Cascading failure propagating to upstream services: order-service, gateway-service"
+        "impact": "Cascading failure propagating to upstream services: gateway-service, order-service"
       },
       "alternativeCauses": [
         "Transient network connectivity or DNS resolution failure",
         "Downstream infrastructure dependency or host resource exhaustion"
       ],
       "supportingEvidence": [
-        "[Metric] inventory-service: inventory_lock_wait_seconds = 14.2 (Distributed row lock deadlock on inventory SKU allocation table.)",
-        "[Metric] order-service: order_stock_reservation_timeouts_total = 39 (Stock reservation RPC failed deadline: 39 checkout attempts stalled.)",
-        "[Metric] gateway-service: gateway_checkout_errors_total = 39 (HTTP 504 Gateway Timeout: order checkout pipeline blocked.)",
-        "[Log] inventory-service: \"[inventory-service] LockWaitTimeout: Deadlock found when trying to get lock for stock SKU allocation table.\"",
-        "[Log] order-service: \"[order-service] InventoryRpcException: Reservation RPC timed out after 3000ms deadline.\"",
-        "[Log] gateway-service: \"[gateway-service] HTTP 504 Gateway Timeout: Customer checkout order could not reserve inventory.\""
+        "Incident: Service inventory-service is the deepest dependency exhibiting failure in t...",
+        "Symptoms: Automated incident generated from cross-source telemetry correlation."
       ],
       "retrievedKnowledge": {
-        "runbookTitle": "Standard Operating Procedure: Distributed Inventory Lock Deadlock",
-        "guidanceSummary": "Immediate Remediation Steps (SOP-06): ## Immediate Remediation Steps (SOP-06)\n1. **Kill Hanging Lock Queries & Reset Allocation Queue**:\n   - Terminate active deadlocked database queries and reset inventory reservation..."
+        "runbookTitle": "Standard Operating Procedure: Auth Token Verification Storm & CPU Throttling",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-08): ## Immediate Remediation Steps (SOP-08)\n1. **Enable Token Rate-Limiting & Flush Ingress Throttler**:\n   - Throttle client IP token renewal requests at API Gateway and enable short-..."
       },
       "timeline": [
         {
-          "time": "12:29:33 am",
-          "service": "gateway-service",
-          "event": "[gateway-service] HTTP 504 Gateway Timeout on /api/v1/auth/verify - Ingress authentication queue blocked.",
-          "type": "cascade"
-        },
-        {
           "time": "12:29:57 am",
           "service": "inventory-service",
-          "event": "[inventory-service] LockWaitTimeout: Deadlock found when trying to get lock for stock SKU allocation table.",
+          "event": "Service inventory-service is the deepest dependency exhibiting failure in t...",
           "type": "origin"
-        },
-        {
-          "time": "12:29:57 am",
-          "service": "order-service",
-          "event": "[order-service] InventoryRpcException: Reservation RPC timed out after 3000ms deadline.",
-          "type": "cascade"
-        },
-        {
-          "time": "12:29:57 am",
-          "service": "gateway-service",
-          "event": "[gateway-service] HTTP 504 Gateway Timeout: Customer checkout order could not reserve inventory.",
-          "type": "cascade"
-        },
-        {
-          "time": "12:29:57 am",
-          "service": "inventory-service",
-          "event": "Distributed row lock deadlock on inventory SKU allocation table.",
-          "type": "origin"
-        },
-        {
-          "time": "12:29:57 am",
-          "service": "order-service",
-          "event": "Stock reservation RPC failed deadline: 39 checkout attempts stalled.",
-          "type": "cascade"
-        },
-        {
-          "time": "12:29:57 am",
-          "service": "gateway-service",
-          "event": "HTTP 504 Gateway Timeout: order checkout pipeline blocked.",
-          "type": "cascade"
         }
       ],
       "remediation": {
@@ -315,7 +275,13 @@
       "provider": "Topological Causal Engine (Deterministic)",
       "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
     },
-    "remediationAudit": null
+    "remediationAudit": {
+      "incidentId": "INC-4130",
+      "action": "restart",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "timestamp": "2026-09-23T19:17:30.624Z"
+    }
   },
   {
     "id": "INC-1465",
