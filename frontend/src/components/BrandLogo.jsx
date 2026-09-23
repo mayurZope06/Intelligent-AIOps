@@ -4,7 +4,7 @@ import React, { useState } from 'react';
  * Creative Brand Logo for Intelligent AIOps
  * Renders the glowing cybernetic neural brain & telemetry wave emblem with ambient backlighting.
  */
-export default function BrandLogo({ size = 30, showGlow = true }) {
+export default function BrandLogo({ size = 32, showGlow = true }) {
   const [imageError, setImageError] = useState(false);
 
   return (
@@ -25,11 +25,11 @@ export default function BrandLogo({ size = 30, showGlow = true }) {
           className="brand-logo-ambient-glow"
           style={{
             position: 'absolute',
-            inset: -2,
-            borderRadius: Math.round(size * 0.28),
-            background: 'linear-gradient(135deg, rgba(100, 210, 255, 0.5) 0%, rgba(48, 209, 88, 0.4) 50%, rgba(191, 90, 242, 0.5) 100%)',
-            filter: 'blur(6px)',
-            opacity: 0.8,
+            inset: -3,
+            borderRadius: '10px',
+            background: 'radial-gradient(circle, rgba(100, 210, 255, 0.4) 0%, rgba(0, 113, 227, 0.25) 50%, transparent 80%)',
+            filter: 'blur(5px)',
+            opacity: 0.85,
             zIndex: 0,
             pointerEvents: 'none'
           }}
@@ -44,12 +44,12 @@ export default function BrandLogo({ size = 30, showGlow = true }) {
           style={{
             width: size,
             height: size,
-            borderRadius: Math.round(size * 0.26),
+            borderRadius: '8px',
             objectFit: 'cover',
             position: 'relative',
             zIndex: 1,
-            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.3)',
-            border: '1px solid rgba(255, 255, 255, 0.18)'
+            boxShadow: '0 4px 14px rgba(0, 113, 227, 0.3), 0 2px 6px rgba(0, 0, 0, 0.8)',
+            border: '1px solid rgba(100, 210, 255, 0.3)'
           }}
         />
       ) : (

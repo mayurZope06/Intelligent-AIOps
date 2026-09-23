@@ -21,10 +21,10 @@ export default function Header({
     <header className="app-header">
       {/* Brand & Identity */}
       <div className="brand-section">
-        <BrandLogo size={28} />
+        <BrandLogo size={32} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="brand-title">Intelligent AIOps</span>
-          <span className="brand-badge">Engine v1.0</span>
+          <span className="brand-badge">Enterprise v1.0</span>
         </div>
       </div>
 

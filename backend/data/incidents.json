@@ -1,5 +1,107 @@
 [
   {
+    "id": "INC-1824",
+    "title": "Service auth-service is the deepest dependency exhibiting failure in the ca...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "auth-service",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T19:10:44.079Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in auth-service. Telemetry shows: Expired JWT flood causing crypto signature thread starvation (98% CPU)..",
+      "severity": "P1-Critical",
+      "probableRootCause": "Service auth-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Expired JWT flood causing crypto signature thread starvation (98% CPU)..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified auth-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "auth-service",
+        "cascading": [
+          "gateway-service"
+        ],
+        "impact": "Cascading failure propagating to upstream services: gateway-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Metric] auth-service: auth_cpu_utilization_ratio = 0.98 (Expired JWT flood causing crypto signature thread starvation (98% CPU).)",
+        "[Metric] gateway-service: gateway_auth_rejections_total = 120 (Ingress burst: 120 client requests rejected with HTTP 401 Unauthorized.)",
+        "[Log] auth-service: \"[auth-service] CryptoThreadExhaustion: CPU 98%. Heavy asymmetric RSA verification on expired JWT token storm.\"",
+        "[Log] gateway-service: \"[gateway-service] HTTP 401 Unauthorized storm: 120 client requests rejected in 5s burst.\""
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Auth Token Verification Storm & CPU Throttling",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-08): ## Immediate Remediation Steps (SOP-08)\n1. **Enable Token Rate-Limiting & Flush Ingress Throttler**:\n   - Throttle client IP token renewal requests at API Gateway and enable short-..."
+      },
+      "timeline": [
+        {
+          "time": "12:30:46 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 504 Gateway Timeout on /api/v1/checkout.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:30:49 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 502 Bad Gateway on checkout route.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:31:28 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 504 Gateway Timeout on /api/v1/checkout.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:31:30 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 502 Bad Gateway: downstream order-service checkout timed out.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:31:35 am",
+          "service": "auth-service",
+          "event": "[auth-service] CryptoThreadExhaustion: CPU 98%. Heavy asymmetric RSA verification on expired JWT token storm.",
+          "type": "origin"
+        },
+        {
+          "time": "12:31:35 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 401 Unauthorized storm: 120 client requests rejected in 5s burst.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:40:42 am",
+          "service": "auth-service",
+          "event": "Expired JWT flood causing crypto signature thread starvation (98% CPU).",
+          "type": "origin"
+        },
+        {
+          "time": "12:40:42 am",
+          "service": "gateway-service",
+          "event": "Ingress burst: 120 client requests rejected with HTTP 401 Unauthorized.",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart and Healthcheck auth-service",
+        "description": "Verify container or process lifecycle for auth-service, check host resource headroom, and verify socket connectivity.",
+        "command": "POST /api/remediate { service: \"auth-service\", action: \"restart\" }",
+        "actionType": "restart",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "remediationAudit": null
+  },
+  {
     "id": "INC-4130",
     "title": "Service inventory-service is the deepest dependency exhibiting failure in t...",
     "description": "Automated incident generated from cross-source telemetry correlation.",
