@@ -1,6 +1,7 @@
 const dependencyTopology = require('../config/topology');
 const prometheusAdapter = require('../adapters/prometheusAdapter');
 const lokiAdapter = require('../adapters/lokiAdapter');
+const logger = require('../utils/logger')('CorrelationEngine');
 
 class CorrelationEngine {
   constructor() {
@@ -9,16 +10,36 @@ class CorrelationEngine {
 
   // Correlate metrics and logs with service dependency graph
   async correlateSignals() {
+    logger.debug('Starting cross-boundary telemetry correlation pass...');
     // 1. Gather live metrics
     const metricsData = await prometheusAdapter.queryMetrics();
-    const anomalies = metricsData.anomalies;
+    const anomalies = [...(metricsData.anomalies || [])];
+
+    // Include OFFLINE microservices as critical outages
+    if (metricsData.services) {
+      Object.entries(metricsData.services).forEach(([svc, info]) => {
+        if (info.status === 'OFFLINE') {
+          anomalies.push({
+            service: svc,
+            metric: 'service_liveness_probe',
+            value: 0,
+            threshold: 1,
+            severity: 'CRITICAL',
+            description: `Microservice unreachable. ${info.error || 'Connection refused (service process not running)'}`
+          });
+        }
+      });
+    }
 
     if (!anomalies || anomalies.length === 0) {
+      logger.debug('Correlation pass completed: 0 active anomalies detected');
       return {
         hasIncident: false,
         message: 'All microservices are reporting normal metrics.'
       };
     }
+
+    logger.info(`Detected ${anomalies.length} anomalous signals across cluster topology`);
 
     // 2. Determine affected services from metrics
     const affectedServiceNames = [...new Set(anomalies.map(a => a.service))];

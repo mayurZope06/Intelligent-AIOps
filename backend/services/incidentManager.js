@@ -9,48 +9,12 @@ class IncidentManager {
 
   init() {
     const existing = storage.read(this.incidentsFile, null);
-    if (!existing || existing.length === 0) {
-      // Seed a realistic baseline incident for demo and MTTR tracking
-      const seed = [
-        {
-          id: 'INC-1001',
-          title: 'Intermittent Gateway Timeout under High Concurrency',
-          description: 'Checkout transactions failed on upstream order proxy due to connection queue buildup.',
-          service: 'gateway-service',
-          severity: 'P2-High',
-          status: 'RESOLVED',
-          trigger: 'AUTOMATED_CORRELATION',
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          resolvedAt: new Date(Date.now() - 3525000).toISOString(),
-          resolutionDurationSeconds: 75,
-          resolutionNotes: 'Connection pool flushed and client read timeouts tuned.',
-          notes: [
-            { id: 'note-1', author: 'SRE-Operator', text: 'Detected elevated 504 Gateway Timeouts during flash checkout spike.', timestamp: new Date(Date.now() - 3580000).toISOString() }
-          ],
-          analysis: {
-            incidentSummary: 'Upstream gateway timeouts triggered by temporary network backlog.',
-            probableRootCause: 'Transient socket exhaustion under burst traffic.',
-            confidence: 94,
-            remediation: { title: 'Flush Socket Pool & Reset Gateway Limits', actionType: 'flush_dns' }
-          },
-          remediationAudit: {
-            action: 'flush_dns',
-            approvedBy: 'SRE Operator',
-            timestamp: new Date(Date.now() - 3525000).toISOString(),
-            result: 'REMEDIATED_AND_RECOVERED'
-          }
-        }
-      ];
-      storage.write(this.incidentsFile, seed);
-      storage.write(this.auditFile, [
-        {
-          incidentId: 'INC-1001',
-          action: 'flush_dns',
-          approvedBy: 'SRE Operator',
-          result: 'REMEDIATED_AND_RECOVERED',
-          timestamp: new Date(Date.now() - 3525000).toISOString()
-        }
-      ]);
+    if (!existing) {
+      storage.write(this.incidentsFile, []);
+    }
+    const existingAudit = storage.read(this.auditFile, null);
+    if (!existingAudit) {
+      storage.write(this.auditFile, []);
     }
   }
 

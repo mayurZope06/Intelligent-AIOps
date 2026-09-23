@@ -1,5 +1,632 @@
 [
   {
+    "id": "INC-1923",
+    "title": "A cascading failure or critical resource exhaustion (such as database conne...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T18:16:46.245Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "A total outage has occurred across multiple core microservices in the cluster, with gateway-service, order-service, and payment-service all returning liveness probe failures and connection refused errors simultaneously.",
+      "severity": "P1-Critical",
+      "probableRootCause": "A cascading failure or critical resource exhaustion (such as database connection pool exhaustion or infrastructure-level node failure) has caused payment-service to crash, resulting in cascading upstream connection refusals across order-service and gateway-service.",
+      "confidence": 92,
+      "confidenceReasoning": "Multiple core services (`gateway-service`, `order-service`, `payment-service`) simultaneously report `service_liveness_probe = 0` with exact timestamp correlation (`2026-09-23T18:16:38.059Z`), pointing to an underlying shared resource failure, cascading dependency deadlock, or node crash.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "gateway-service",
+          "order-service"
+        ],
+        "impact": "All incoming client traffic is failing with connection refused errors, completely halting order placement and payment processing capabilities."
+      },
+      "alternativeCauses": [
+        "Underlying Kubernetes node failure or network partition causing simultaneous loss of liveness probes across multiple pods.",
+        "Shared database or downstream backing service exhaustion causing all dependent microservices to crash upon startup or fail their health checks."
+      ],
+      "supportingEvidence": [
+        "[Metric] gateway-service: service_liveness_probe = 0 (Microservice unreachable. Connection refused (service not running))",
+        "[Metric] order-service: service_liveness_probe = 0 (Microservice unreachable. Connection refused (service not running))",
+        "[Metric] payment-service: service_liveness_probe = 0 (Microservice unreachable. Connection refused (service not running))"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Database Connection Pool Exhaustion",
+        "guidanceSummary": "Drain and reset the connection pool on payment-service, increase MONGODB_POOL_MAX_SIZE, and configure socket keep-alives and idle timeouts to prevent cascading thread exhaustion."
+      },
+      "timeline": [
+        {
+          "time": "2026-09-23T18:16:38.059Z",
+          "service": "gateway-service",
+          "event": "Microservice unreachable. Connection refused (service not running)",
+          "type": "cascading"
+        },
+        {
+          "time": "2026-09-23T18:16:38.059Z",
+          "service": "order-service",
+          "event": "Microservice unreachable. Connection refused (service not running)",
+          "type": "cascading"
+        },
+        {
+          "time": "2026-09-23T18:16:38.059Z",
+          "service": "payment-service",
+          "event": "Microservice unreachable. Connection refused (service not running)",
+          "type": "origin"
+        }
+      ],
+      "remediation": {
+        "title": "Drain & Reset Connection Pool and Restart Services",
+        "description": "Flush zombie sockets on payment-service by triggering the pool reset hook and restart affected microservice pods to restore liveness probes.",
+        "command": "POST /api/remediate { action: \"restart_connection_pool\" }",
+        "actionType": "restart_service",
+        "requiresHumanApproval": true
+      },
+      "provider": "Google Gemini LLM",
+      "model": "gemini-3.5-flash-lite"
+    },
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-4525",
+    "title": "A cascading failure originating in deep dependencies or resource exhaustion...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T18:10:30.967Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "A total service outage has occurred affecting gateway-service, order-service, and payment-service, resulting in all three microservices becoming unreachable and failing liveness probes simultaneously.",
+      "severity": "P1-Critical",
+      "probableRootCause": "A cascading failure originating in deep dependencies or resource exhaustion has caused multiple core services (`gateway-service`, `order-service`, `payment-service`) to crash or become entirely unresponsive, leading to connection refused errors on all liveness probes.",
+      "confidence": 92,
+      "confidenceReasoning": "Simultaneous liveness probe failures and connection refused errors across multiple interdependent services strongly indicate a cascading architectural failure or shared resource constraint leading to process termination.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "gateway-service",
+          "order-service"
+        ],
+        "impact": "Complete disruption of API entry points and order processing capabilities, preventing any external or internal traffic from being handled."
+      },
+      "alternativeCauses": [
+        "Simultaneous container orchestration (Kubernetes) node failure hosting these pods",
+        "Shared infrastructure dependency failure such as a centralized service mesh or network partition"
+      ],
+      "supportingEvidence": [
+        "[Metric] gateway-service: service_liveness_probe = 0 (Microservice unreachable. Connection refused (service not running))",
+        "[Metric] order-service: service_liveness_probe = 0 (Microservice unreachable. Connection refused (service not running))",
+        "[Metric] payment-service: service_liveness_probe = 0 (Microservice unreachable. Connection refused (service not running))"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Service Timeout & Cascading Latency - Root Cause Analysis",
+        "guidanceSummary": "Cascading failures start in deep dependencies like payment-service and exhaust upstream worker threads without circuit breakers, leading to total gateway paralysis."
+      },
+      "timeline": [
+        {
+          "time": "2026-09-23T18:10:23.116Z",
+          "service": "gateway-service",
+          "event": "Microservice unreachable. Connection refused (service not running)",
+          "type": "origin"
+        },
+        {
+          "time": "2026-09-23T18:10:23.116Z",
+          "service": "order-service",
+          "event": "Microservice unreachable. Connection refused (service not running)",
+          "type": "origin"
+        },
+        {
+          "time": "2026-09-23T18:10:23.116Z",
+          "service": "payment-service",
+          "event": "Microservice unreachable. Connection refused (service not running)",
+          "type": "origin"
+        }
+      ],
+      "remediation": {
+        "title": "Restart Unresponsive Microservices and Verify Connection Pools",
+        "description": "Trigger container/service restarts for payment-service, order-service, and gateway-service while ensuring database connection pool parameters are properly configured to prevent cascade.",
+        "command": "kubectl rollout restart deployment/gateway-service deployment/order-service deployment/payment-service",
+        "actionType": "restart_service",
+        "requiresHumanApproval": true
+      },
+      "provider": "Google Gemini LLM",
+      "model": "gemini-3.5-flash-lite"
+    },
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-6265",
+    "title": "DB OVERLOAD",
+    "description": "ADfowjoapdjf",
+    "service": "database",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-23T17:31:32.702Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": null,
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-1673",
+    "title": "Process in payment-service terminated with exit code 139. Upstream order-se...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T17:10:04.426Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
+      "severity": "P1-Critical",
+      "probableRootCause": "Process in payment-service terminated with exit code 139. Upstream order-service is receiving ECONNREFUSED on port 4002.",
+      "confidence": 98,
+      "confidenceReasoning": "Correlation between metric anomalies (service_health, service_health, service_health) and service call chain graph confirms payment-service as the initial fault source with no deeper failing services.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "gateway-service",
+          "order-service"
+        ],
+        "impact": "Client checkout transaction failure rate elevated to 100%"
+      },
+      "alternativeCauses": [
+        "Transient network partition between Kubernetes cluster nodes",
+        "Downstream cloud provider gateway degradation"
+      ],
+      "supportingEvidence": [
+        "[Metric] gateway-service: service_health = 0 (Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000))",
+        "[Metric] order-service: service_health = 0 (Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001))",
+        "[Metric] payment-service: service_health = 0 (Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002))"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Service Timeout & Cascading Latency",
+        "guidanceSummary": "Root Cause Analysis: ## Root Cause Analysis\r\nCascading failure typically starts in an edge or deep dependency (e.g. `payment-service` or external payment provider). Because upstream services (`order-se..."
+      },
+      "timeline": [
+        {
+          "time": "10:40:03 pm",
+          "service": "gateway-service",
+          "event": "Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000)",
+          "type": "origin"
+        },
+        {
+          "time": "10:40:03 pm",
+          "service": "order-service",
+          "event": "Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001)",
+          "type": "cascade"
+        },
+        {
+          "time": "10:40:03 pm",
+          "service": "payment-service",
+          "event": "Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002)",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart Service Container & Purge Poison Requests",
+        "description": "Re-instantiate worker process with fresh memory space and purge unprocessed request backlog.",
+        "command": "POST /api/remediate { action: \"restart_container\" }",
+        "actionType": "restart_container",
+        "requiresHumanApproval": true
+      },
+      "provider": "Intelligent Semantic Causal Engine (Offline Fallback)"
+    },
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-3546",
+    "title": "Process in payment-service terminated with exit code 139. Upstream order-se...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T17:09:41.060Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "Remediation action 'restart_container' approved by DevOps SRE Lead and executed successfully.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
+      "severity": "P1-Critical",
+      "probableRootCause": "Process in payment-service terminated with exit code 139. Upstream order-service is receiving ECONNREFUSED on port 4002.",
+      "confidence": 98,
+      "confidenceReasoning": "Correlation between metric anomalies (service_health, service_health, service_health) and service call chain graph confirms payment-service as the initial fault source with no deeper failing services.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "gateway-service",
+          "order-service"
+        ],
+        "impact": "Client checkout transaction failure rate elevated to 100%"
+      },
+      "alternativeCauses": [
+        "Transient network partition between Kubernetes cluster nodes",
+        "Downstream cloud provider gateway degradation"
+      ],
+      "supportingEvidence": [
+        "[Metric] gateway-service: service_health = 0 (Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000))",
+        "[Metric] order-service: service_health = 0 (Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001))",
+        "[Metric] payment-service: service_health = 0 (Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002))"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Service Timeout & Cascading Latency",
+        "guidanceSummary": "Root Cause Analysis: ## Root Cause Analysis\r\nCascading failure typically starts in an edge or deep dependency (e.g. `payment-service` or external payment provider). Because upstream services (`order-se..."
+      },
+      "timeline": [
+        {
+          "time": "10:39:40 pm",
+          "service": "gateway-service",
+          "event": "Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000)",
+          "type": "origin"
+        },
+        {
+          "time": "10:39:40 pm",
+          "service": "order-service",
+          "event": "Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001)",
+          "type": "cascade"
+        },
+        {
+          "time": "10:39:40 pm",
+          "service": "payment-service",
+          "event": "Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002)",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart Service Container & Purge Poison Requests",
+        "description": "Re-instantiate worker process with fresh memory space and purge unprocessed request backlog.",
+        "command": "POST /api/remediate { action: \"restart_container\" }",
+        "actionType": "restart_container",
+        "requiresHumanApproval": true
+      },
+      "provider": "Intelligent Semantic Causal Engine (Offline Fallback)"
+    },
+    "remediationAudit": {
+      "incidentId": "INC-3546",
+      "action": "restart_container",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "timestamp": "2026-09-23T17:09:46.689Z"
+    }
+  },
+  {
+    "id": "INC-7739",
+    "title": "Yash chuttdhary ",
+    "description": "Caught in Red light area ( BUdhwarePeth )",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-23T17:08:05.435Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [
+      {
+        "id": "note-1790183314062",
+        "author": "SRE-Operator",
+        "text": "Kon hota ?",
+        "timestamp": "2026-09-23T17:08:34.062Z"
+      },
+      {
+        "id": "note-1790183324704",
+        "author": "SRE-Operator",
+        "text": "Ye ky a ?",
+        "timestamp": "2026-09-23T17:08:44.704Z"
+      }
+    ],
+    "analysis": null,
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-4771",
+    "title": "Process in payment-service terminated with exit code 139. Upstream order-se...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T16:58:34.218Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
+      "severity": "P1-Critical",
+      "probableRootCause": "Process in payment-service terminated with exit code 139. Upstream order-service is receiving ECONNREFUSED on port 4002.",
+      "confidence": 98,
+      "confidenceReasoning": "Correlation between metric anomalies (service_health, service_health, service_health) and service call chain graph confirms payment-service as the initial fault source with no deeper failing services.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "gateway-service",
+          "order-service"
+        ],
+        "impact": "Client checkout transaction failure rate elevated to 100%"
+      },
+      "alternativeCauses": [
+        "Transient network partition between Kubernetes cluster nodes",
+        "Downstream cloud provider gateway degradation"
+      ],
+      "supportingEvidence": [
+        "[Metric] gateway-service: service_health = 0 (Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000))",
+        "[Metric] order-service: service_health = 0 (Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001))",
+        "[Metric] payment-service: service_health = 0 (Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002))"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Service Timeout & Cascading Latency",
+        "guidanceSummary": "Root Cause Analysis: ## Root Cause Analysis\r\nCascading failure typically starts in an edge or deep dependency (e.g. `payment-service` or external payment provider). Because upstream services (`order-se..."
+      },
+      "timeline": [
+        {
+          "time": "10:28:33 pm",
+          "service": "gateway-service",
+          "event": "Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000)",
+          "type": "origin"
+        },
+        {
+          "time": "10:28:33 pm",
+          "service": "order-service",
+          "event": "Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001)",
+          "type": "cascade"
+        },
+        {
+          "time": "10:28:33 pm",
+          "service": "payment-service",
+          "event": "Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002)",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart Service Container & Purge Poison Requests",
+        "description": "Re-instantiate worker process with fresh memory space and purge unprocessed request backlog.",
+        "command": "POST /api/remediate { action: \"restart_container\" }",
+        "actionType": "restart_container",
+        "requiresHumanApproval": true
+      },
+      "provider": "Intelligent Semantic Causal Engine (Offline Fallback)"
+    },
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-8069",
+    "title": "Process in payment-service terminated with exit code 139. Upstream order-se...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T16:55:17.165Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
+      "severity": "P1-Critical",
+      "probableRootCause": "Process in payment-service terminated with exit code 139. Upstream order-service is receiving ECONNREFUSED on port 4002.",
+      "confidence": 98,
+      "confidenceReasoning": "Correlation between metric anomalies (service_health, service_health, service_health) and service call chain graph confirms payment-service as the initial fault source with no deeper failing services.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "gateway-service",
+          "order-service"
+        ],
+        "impact": "Client checkout transaction failure rate elevated to 100%"
+      },
+      "alternativeCauses": [
+        "Transient network partition between Kubernetes cluster nodes",
+        "Downstream cloud provider gateway degradation"
+      ],
+      "supportingEvidence": [
+        "[Metric] gateway-service: service_health = 0 (Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000))",
+        "[Metric] order-service: service_health = 0 (Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001))",
+        "[Metric] payment-service: service_health = 0 (Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002))"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Service Timeout & Cascading Latency",
+        "guidanceSummary": "Root Cause Analysis: ## Root Cause Analysis\r\nCascading failure typically starts in an edge or deep dependency (e.g. `payment-service` or external payment provider). Because upstream services (`order-se..."
+      },
+      "timeline": [
+        {
+          "time": "10:25:16 pm",
+          "service": "gateway-service",
+          "event": "Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000)",
+          "type": "origin"
+        },
+        {
+          "time": "10:25:16 pm",
+          "service": "order-service",
+          "event": "Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001)",
+          "type": "cascade"
+        },
+        {
+          "time": "10:25:16 pm",
+          "service": "payment-service",
+          "event": "Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002)",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart Service Container & Purge Poison Requests",
+        "description": "Re-instantiate worker process with fresh memory space and purge unprocessed request backlog.",
+        "command": "POST /api/remediate { action: \"restart_container\" }",
+        "actionType": "restart_container",
+        "requiresHumanApproval": true
+      },
+      "provider": "Intelligent Semantic Causal Engine (Offline Fallback)"
+    },
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-5234",
+    "title": "Process in payment-service terminated with exit code 139. Upstream order-se...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T16:53:40.269Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
+      "severity": "P1-Critical",
+      "probableRootCause": "Process in payment-service terminated with exit code 139. Upstream order-service is receiving ECONNREFUSED on port 4002.",
+      "confidence": 98,
+      "confidenceReasoning": "Correlation between metric anomalies (service_health, service_health, service_health) and service call chain graph confirms payment-service as the initial fault source with no deeper failing services.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "gateway-service",
+          "order-service"
+        ],
+        "impact": "Client checkout transaction failure rate elevated to 100%"
+      },
+      "alternativeCauses": [
+        "Transient network partition between Kubernetes cluster nodes",
+        "Downstream cloud provider gateway degradation"
+      ],
+      "supportingEvidence": [
+        "[Metric] gateway-service: service_health = 0 (Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000))",
+        "[Metric] order-service: service_health = 0 (Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001))",
+        "[Metric] payment-service: service_health = 0 (Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002))"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Service Timeout & Cascading Latency",
+        "guidanceSummary": "Root Cause Analysis: ## Root Cause Analysis\r\nCascading failure typically starts in an edge or deep dependency (e.g. `payment-service` or external payment provider). Because upstream services (`order-se..."
+      },
+      "timeline": [
+        {
+          "time": "10:23:40 pm",
+          "service": "gateway-service",
+          "event": "Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000)",
+          "type": "origin"
+        },
+        {
+          "time": "10:23:40 pm",
+          "service": "order-service",
+          "event": "Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001)",
+          "type": "cascade"
+        },
+        {
+          "time": "10:23:40 pm",
+          "service": "payment-service",
+          "event": "Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002)",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart Service Container & Purge Poison Requests",
+        "description": "Re-instantiate worker process with fresh memory space and purge unprocessed request backlog.",
+        "command": "POST /api/remediate { action: \"restart_container\" }",
+        "actionType": "restart_container",
+        "requiresHumanApproval": true
+      },
+      "provider": "Intelligent Semantic Causal Engine (Offline Fallback)"
+    },
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-4436",
+    "title": "Process in payment-service terminated with exit code 139. Upstream order-se...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "RESOLVED",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T16:53:22.381Z",
+    "resolvedAt": "2026-09-23T16:53:28.617Z",
+    "resolutionDurationSeconds": 6,
+    "resolutionNotes": "Remediation action 'restart_container' approved by DevOps SRE Lead and executed successfully.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
+      "severity": "P1-Critical",
+      "probableRootCause": "Process in payment-service terminated with exit code 139. Upstream order-service is receiving ECONNREFUSED on port 4002.",
+      "confidence": 98,
+      "confidenceReasoning": "Correlation between metric anomalies (service_health, service_health, service_health) and service call chain graph confirms payment-service as the initial fault source with no deeper failing services.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "gateway-service",
+          "order-service"
+        ],
+        "impact": "Client checkout transaction failure rate elevated to 100%"
+      },
+      "alternativeCauses": [
+        "Transient network partition between Kubernetes cluster nodes",
+        "Downstream cloud provider gateway degradation"
+      ],
+      "supportingEvidence": [
+        "[Metric] gateway-service: service_health = 0 (Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000))",
+        "[Metric] order-service: service_health = 0 (Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001))",
+        "[Metric] payment-service: service_health = 0 (Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002))"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Service Timeout & Cascading Latency",
+        "guidanceSummary": "Root Cause Analysis: ## Root Cause Analysis\r\nCascading failure typically starts in an edge or deep dependency (e.g. `payment-service` or external payment provider). Because upstream services (`order-se..."
+      },
+      "timeline": [
+        {
+          "time": "10:23:22 pm",
+          "service": "gateway-service",
+          "event": "Service gateway-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4000; connect ECONNREFUSED 127.0.0.1:4000)",
+          "type": "origin"
+        },
+        {
+          "time": "10:23:22 pm",
+          "service": "order-service",
+          "event": "Service order-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4001; connect ECONNREFUSED 127.0.0.1:4001)",
+          "type": "cascade"
+        },
+        {
+          "time": "10:23:22 pm",
+          "service": "payment-service",
+          "event": "Service payment-service unreachable or failed to respond to metrics scrape (connect ECONNREFUSED ::1:4002; connect ECONNREFUSED 127.0.0.1:4002)",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart Service Container & Purge Poison Requests",
+        "description": "Re-instantiate worker process with fresh memory space and purge unprocessed request backlog.",
+        "command": "POST /api/remediate { action: \"restart_container\" }",
+        "actionType": "restart_container",
+        "requiresHumanApproval": true
+      },
+      "provider": "Intelligent Semantic Causal Engine (Offline Fallback)"
+    },
+    "remediationAudit": {
+      "incidentId": "INC-4436",
+      "action": "restart_container",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "timestamp": "2026-09-23T16:53:28.612Z"
+    }
+  },
+  {
     "id": "INC-5032",
     "title": "Payment service exceeded the maximum database pool capacity (100 active con...",
     "description": "Automated incident generated from cross-source telemetry correlation.",
