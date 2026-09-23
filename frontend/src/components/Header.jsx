@@ -86,15 +86,19 @@ export default function Header({
         {/* Test Scenario Simulator */}
         <select
           className="apple-select"
-          style={{ width: 175, fontSize: '11px', padding: '4px 8px' }}
+          style={{ width: 220, fontSize: '11px', padding: '4px 8px' }}
           value={activeScenario || 'none'}
           onChange={(e) => onSelectScenario && onSelectScenario(e.target.value)}
           title="Inject real test anomalies into the cluster telemetry pipeline"
         >
-          <option value="none">Telemetry: Normal</option>
-          <option value="high_cpu">Simulate: High CPU (SOP-03)</option>
-          <option value="db_overload">Simulate: DB Pool Exhaustion</option>
-          <option value="downstream_failure">Simulate: RPC Timeout</option>
+          <option value="none">Telemetry: Nominal (All Healthy)</option>
+          <option value="high_cpu">Simulate: High CPU & Event Loop (Payment)</option>
+          <option value="db_overload">Simulate: DB Pool Exhaustion (MongoDB)</option>
+          <option value="downstream_failure">Simulate: RPC Timeout & Deadlock (Payment)</option>
+          <option value="cache_stampede">Simulate: Redis Cache Storm & Stampede</option>
+          <option value="inventory_lock">Simulate: Inventory Deadlock (Checkout Stalled)</option>
+          <option value="payment_gateway_down">Simulate: 3rd-Party Gateway 503 Outage</option>
+          <option value="auth_storm">Simulate: Auth Token Storm & 401 Burst</option>
         </select>
 
         {/* AI Diagnosis Action */}

@@ -165,8 +165,14 @@ export default function TelemetryView({
               <option value="all">All Services</option>
               <option value="aiops-engine">aiops-engine (Debug Logs)</option>
               <option value="gateway-service">gateway-service</option>
+              <option value="auth-service">auth-service</option>
               <option value="order-service">order-service</option>
+              <option value="inventory-service">inventory-service</option>
               <option value="payment-service">payment-service</option>
+              <option value="notification-service">notification-service</option>
+              <option value="cache-redis">cache-redis</option>
+              <option value="database">database</option>
+              <option value="payment-gateway">payment-gateway</option>
             </select>
 
             <select

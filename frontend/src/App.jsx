@@ -18,40 +18,76 @@ const DEFAULT_NODES = [
   {
     id: 'frontend',
     type: 'serviceNode',
-    position: { x: 60, y: 220 },
+    position: { x: 40, y: 240 },
     data: { id: 'frontend', name: 'Client / Web Frontend', status: 'HEALTHY', port: 5173, team: 'Frontend Platform', type: 'client' }
   },
   {
     id: 'gateway-service',
     type: 'serviceNode',
-    position: { x: 325, y: 220 },
+    position: { x: 300, y: 240 },
     data: { id: 'gateway-service', name: 'API Gateway', status: 'HEALTHY', port: 4000, team: 'Core Infrastructure', type: 'gateway' }
+  },
+  {
+    id: 'auth-service',
+    type: 'serviceNode',
+    position: { x: 580, y: 100 },
+    data: { id: 'auth-service', name: 'Auth & IAM Service', status: 'HEALTHY', port: 4003, team: 'Security & IAM', type: 'service' }
+  },
+  {
+    id: 'cache-redis',
+    type: 'serviceNode',
+    position: { x: 860, y: 100 },
+    data: { id: 'cache-redis', name: 'Redis Cache Cluster', status: 'HEALTHY', port: 6379, team: 'Infra Ops', type: 'cache' }
   },
   {
     id: 'order-service',
     type: 'serviceNode',
-    position: { x: 590, y: 220 },
+    position: { x: 580, y: 320 },
     data: { id: 'order-service', name: 'Order Service', status: 'HEALTHY', port: 4001, team: 'Commerce Team', type: 'service' }
+  },
+  {
+    id: 'inventory-service',
+    type: 'serviceNode',
+    position: { x: 860, y: 220 },
+    data: { id: 'inventory-service', name: 'Inventory & Stock', status: 'HEALTHY', port: 4004, team: 'Logistics Team', type: 'service' }
   },
   {
     id: 'payment-service',
     type: 'serviceNode',
-    position: { x: 855, y: 220 },
+    position: { x: 860, y: 340 },
     data: { id: 'payment-service', name: 'Payment Service', status: 'HEALTHY', port: 4002, team: 'Fintech Team', type: 'service' }
+  },
+  {
+    id: 'notification-service',
+    type: 'serviceNode',
+    position: { x: 860, y: 460 },
+    data: { id: 'notification-service', name: 'Notification Service', status: 'HEALTHY', port: 4005, team: 'Platform Messaging', type: 'service' }
   },
   {
     id: 'database',
     type: 'serviceNode',
-    position: { x: 1120, y: 220 },
+    position: { x: 1140, y: 260 },
     data: { id: 'database', name: 'MongoDB Cluster', status: 'HEALTHY', port: 27017, team: 'Database Ops', type: 'database' }
+  },
+  {
+    id: 'payment-gateway',
+    type: 'serviceNode',
+    position: { x: 1140, y: 390 },
+    data: { id: 'payment-gateway', name: 'External Stripe Gateway', status: 'HEALTHY', port: 443, team: 'Third-Party Partner', type: 'external' }
   }
 ];
 
 const DEFAULT_EDGES = [
   { id: 'e-client-gw', source: 'frontend', target: 'gateway-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
+  { id: 'e-gw-auth', source: 'gateway-service', target: 'auth-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
   { id: 'e-gw-order', source: 'gateway-service', target: 'order-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
+  { id: 'e-auth-cache', source: 'auth-service', target: 'cache-redis', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
+  { id: 'e-order-inv', source: 'order-service', target: 'inventory-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
   { id: 'e-order-payment', source: 'order-service', target: 'payment-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-payment-db', source: 'payment-service', target: 'database', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } }
+  { id: 'e-order-notif', source: 'order-service', target: 'notification-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
+  { id: 'e-inv-db', source: 'inventory-service', target: 'database', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
+  { id: 'e-payment-db', source: 'payment-service', target: 'database', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
+  { id: 'e-payment-gw', source: 'payment-service', target: 'payment-gateway', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } }
 ];
 
 export default function App() {
@@ -113,11 +149,16 @@ export default function App() {
       const rawEdges = res.data.edges || [];
 
       const positions = {
-        'frontend': { x: 60, y: 220 },
-        'gateway-service': { x: 325, y: 220 },
-        'order-service': { x: 590, y: 220 },
-        'payment-service': { x: 855, y: 220 },
-        'database': { x: 1120, y: 220 }
+        'frontend': { x: 40, y: 240 },
+        'gateway-service': { x: 300, y: 240 },
+        'auth-service': { x: 580, y: 100 },
+        'cache-redis': { x: 860, y: 100 },
+        'order-service': { x: 580, y: 320 },
+        'inventory-service': { x: 860, y: 220 },
+        'payment-service': { x: 860, y: 340 },
+        'notification-service': { x: 860, y: 460 },
+        'database': { x: 1140, y: 260 },
+        'payment-gateway': { x: 1140, y: 390 }
       };
 
       const flowNodes = rawNodes.map(n => ({

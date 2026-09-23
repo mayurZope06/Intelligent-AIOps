@@ -229,8 +229,9 @@ app.post('/api/telemetry/simulate', (req, res) => {
   prometheusAdapter.setSimulationScenario(scenario || 'none');
 
   if (scenario === 'db_overload') {
+    lokiAdapter.pushLog({ service: 'database', level: 'CRITICAL', message: '[database] MongoServerSelectionError: Max pool connection limit reached (100/100). Sockets saturated.' });
     lokiAdapter.pushLog({ service: 'payment-service', level: 'CRITICAL', message: '[payment-service] ConnectionPoolTimeoutException: Timeout waiting for connection from pool of 100 max connections.' });
-    lokiAdapter.pushLog({ service: 'payment-service', level: 'CRITICAL', message: '[payment-service] MongoNetworkError: failed to connect to server [mongodb:27017] after 5000ms.' });
+    lokiAdapter.pushLog({ service: 'inventory-service', level: 'WARN', message: '[inventory-service] SlowQueryException: MongoDB inventory stock lookup took 1850ms (>150ms budget).' });
     lokiAdapter.pushLog({ service: 'order-service', level: 'WARN', message: '[order-service] UpstreamRpcException: payment-service:4002 failed to respond within deadline on POST /charge.' });
     lokiAdapter.pushLog({ service: 'gateway-service', level: 'ERROR', message: '[gateway-service] HTTP 502 Bad Gateway: downstream order-service checkout timed out.' });
   } else if (scenario === 'high_cpu') {
@@ -241,10 +242,27 @@ app.post('/api/telemetry/simulate', (req, res) => {
     lokiAdapter.pushLog({ service: 'payment-service', level: 'CRITICAL', message: '[payment-service] FATAL: Process out of memory / thread deadlock in payment processing queue.' });
     lokiAdapter.pushLog({ service: 'order-service', level: 'ERROR', message: '[order-service] ConnectionRefused: http://localhost:4002/api/charge unreached.' });
     lokiAdapter.pushLog({ service: 'gateway-service', level: 'ERROR', message: '[gateway-service] HTTP 502 Bad Gateway on checkout route.' });
+  } else if (scenario === 'cache_stampede') {
+    lokiAdapter.pushLog({ service: 'cache-redis', level: 'CRITICAL', message: '[cache-redis] OOM command not allowed: maxmemory reached. 4500 keys evicted/sec under high write load.' });
+    lokiAdapter.pushLog({ service: 'auth-service', level: 'WARN', message: '[auth-service] RedisClientException: Key session:user_* evicted. Forced DB fallback cache miss (latency: 890ms).' });
+    lokiAdapter.pushLog({ service: 'gateway-service', level: 'ERROR', message: '[gateway-service] HTTP 504 Gateway Timeout on /api/v1/auth/verify - Ingress authentication queue blocked.' });
+  } else if (scenario === 'inventory_lock') {
+    lokiAdapter.pushLog({ service: 'inventory-service', level: 'CRITICAL', message: '[inventory-service] LockWaitTimeout: Deadlock found when trying to get lock for stock SKU allocation table.' });
+    lokiAdapter.pushLog({ service: 'order-service', level: 'ERROR', message: '[order-service] InventoryRpcException: Reservation RPC timed out after 3000ms deadline.' });
+    lokiAdapter.pushLog({ service: 'gateway-service', level: 'ERROR', message: '[gateway-service] HTTP 504 Gateway Timeout: Customer checkout order could not reserve inventory.' });
+  } else if (scenario === 'payment_gateway_down') {
+    lokiAdapter.pushLog({ service: 'payment-gateway', level: 'CRITICAL', message: '[payment-gateway] HTTP 503 Service Unavailable: External Stripe Fintech gateway returned downstream 503.' });
+    lokiAdapter.pushLog({ service: 'payment-service', level: 'ERROR', message: '[payment-service] CircuitBreakerTripped: State OPEN. Failing fast on charge requests to protect worker pool.' });
+    lokiAdapter.pushLog({ service: 'order-service', level: 'WARN', message: '[order-service] PaymentRejectedException: Payment provider circuit breaker open. Order checkout aborted.' });
+  } else if (scenario === 'auth_storm') {
+    lokiAdapter.pushLog({ service: 'auth-service', level: 'CRITICAL', message: '[auth-service] CryptoThreadExhaustion: CPU 98%. Heavy asymmetric RSA verification on expired JWT token storm.' });
+    lokiAdapter.pushLog({ service: 'gateway-service', level: 'ERROR', message: '[gateway-service] HTTP 401 Unauthorized storm: 120 client requests rejected in 5s burst.' });
   } else if (scenario === 'none' || scenario === 'reset') {
+    lokiAdapter.pushLog({ service: 'auth-service', level: 'INFO', message: '[auth-service] Auth session validation nominal (8ms). Token verification pipeline healthy.' });
+    lokiAdapter.pushLog({ service: 'inventory-service', level: 'INFO', message: '[inventory-service] Stock reservation locks cleared. Inventory allocation operational.' });
     lokiAdapter.pushLog({ service: 'payment-service', level: 'INFO', message: '[payment-service] Connection pool drained and reset. Ready for traffic.' });
-    lokiAdapter.pushLog({ service: 'order-service', level: 'INFO', message: '[order-service] Downstream payment-service restored. RPC latency: 19ms.' });
-    lokiAdapter.pushLog({ service: 'gateway-service', level: 'INFO', message: '[gateway-service] All upstream microservice probes nominal. Latency: 16ms.' });
+    lokiAdapter.pushLog({ service: 'order-service', level: 'INFO', message: '[order-service] Downstream microservice dependencies restored. RPC latency: 19ms.' });
+    lokiAdapter.pushLog({ service: 'gateway-service', level: 'INFO', message: '[gateway-service] All upstream microservice probes nominal. Ingress error rate: 0.00%.' });
   }
 
   logger.info(`Telemetry test scenario activated: ${scenario || 'none'}`);

@@ -82,10 +82,15 @@ class CorrelationEngine {
 
     // 5. Causal Analysis via Dependency Graph
     // Deepest service in the call chain exhibiting failure is likely the root origin.
-    // Order of dependency depth: database > payment-service > order-service > gateway-service > frontend
+    // Order of dependency depth: database / external gateway > cache-redis > domain services > gateway > frontend
     const dependencyDepth = {
-      'database': 5,
+      'payment-gateway': 6,
+      'database': 6,
+      'cache-redis': 5,
       'payment-service': 4,
+      'inventory-service': 4,
+      'notification-service': 4,
+      'auth-service': 3,
       'order-service': 3,
       'gateway-service': 2,
       'frontend': 1

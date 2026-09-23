@@ -360,9 +360,14 @@ export default function IncidentsView({
                     <label className="section-title" style={{ display: 'block', marginBottom: 4 }}>Impacted Service</label>
                     <select className="apple-select" value={newService} onChange={(e) => setNewService(e.target.value)}>
                       <option value="gateway-service">gateway-service</option>
+                      <option value="auth-service">auth-service</option>
                       <option value="order-service">order-service</option>
+                      <option value="inventory-service">inventory-service</option>
                       <option value="payment-service">payment-service</option>
+                      <option value="notification-service">notification-service</option>
+                      <option value="cache-redis">cache-redis</option>
                       <option value="database">database</option>
+                      <option value="payment-gateway">payment-gateway</option>
                     </select>
                   </div>
 

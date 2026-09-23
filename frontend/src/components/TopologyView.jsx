@@ -1,12 +1,25 @@
 import React, { useState } from 'react';
 import ReactFlow, { Background, Controls, MarkerType, Handle, Position } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Server, Database, Layers, X, ExternalLink, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Server, Database, Layers, X, ExternalLink, ShieldAlert, CheckCircle2, Cpu, Globe, KeyRound, Bell } from 'lucide-react';
 
 // Custom Apple-style Squircle Node
 const AppleServiceNode = ({ data, selected }) => {
   const status = (data.status || 'HEALTHY').toUpperCase();
-  const Icon = data.type === 'database' ? Database : data.type === 'client' ? Layers : Server;
+  const getNodeIcon = () => {
+    switch (data.type) {
+      case 'database': return Database;
+      case 'cache': return Cpu;
+      case 'gateway': return Layers;
+      case 'client': return Layers;
+      case 'external': return Globe;
+      default:
+        if (data.id === 'auth-service') return KeyRound;
+        if (data.id === 'notification-service') return Bell;
+        return Server;
+    }
+  };
+  const Icon = getNodeIcon();
 
   const isFailing = status === 'CRITICAL' || status === 'OFFLINE';
 

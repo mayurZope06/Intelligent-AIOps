@@ -6,8 +6,11 @@ class PrometheusAdapter {
     this.promUrl = process.env.PROMETHEUS_URL || 'http://localhost:9090';
     this.serviceEndpoints = {
       'gateway-service': process.env.GATEWAY_URL ? `${process.env.GATEWAY_URL}/metrics` : 'http://localhost:4000/metrics',
+      'auth-service': process.env.AUTH_URL ? `${process.env.AUTH_URL}/metrics` : 'http://localhost:4003/metrics',
       'order-service': process.env.ORDER_URL ? `${process.env.ORDER_URL}/metrics` : 'http://localhost:4001/metrics',
-      'payment-service': process.env.PAYMENT_URL ? `${process.env.PAYMENT_URL}/metrics` : 'http://localhost:4002/metrics'
+      'inventory-service': process.env.INVENTORY_URL ? `${process.env.INVENTORY_URL}/metrics` : 'http://localhost:4004/metrics',
+      'payment-service': process.env.PAYMENT_URL ? `${process.env.PAYMENT_URL}/metrics` : 'http://localhost:4002/metrics',
+      'notification-service': process.env.NOTIF_URL ? `${process.env.NOTIF_URL}/metrics` : 'http://localhost:4005/metrics'
     };
     this.activeScenario = 'none';
   }
@@ -166,10 +169,15 @@ class PrometheusAdapter {
         severity: 'HIGH',
         description: 'Gateway 504 Gateway Timeout errors observed on customer checkout routes.'
       });
-      results.services['payment-service'] = { status: 'ONLINE', endpoint: this.serviceEndpoints['payment-service'], lastScrape: new Date().toISOString() };
-      results.services['order-service'] = { status: 'ONLINE', endpoint: this.serviceEndpoints['order-service'], lastScrape: new Date().toISOString() };
-      results.services['gateway-service'] = { status: 'ONLINE', endpoint: this.serviceEndpoints['gateway-service'], lastScrape: new Date().toISOString() };
     } else if (this.activeScenario === 'db_overload') {
+      results.anomalies.push({
+        service: 'database',
+        metric: 'mongo_connection_pool_active',
+        value: 100,
+        threshold: 90,
+        severity: 'CRITICAL',
+        description: 'MongoDB primary connection pool saturated: 100/100 sockets utilized.'
+      });
       results.anomalies.push({
         service: 'payment-service',
         metric: 'payment_active_connections',
@@ -187,6 +195,14 @@ class PrometheusAdapter {
         description: 'Database transaction write errors: 24 socket connection timeouts.'
       });
       results.anomalies.push({
+        service: 'inventory-service',
+        metric: 'inventory_db_query_latency_ms',
+        value: 1850,
+        threshold: 150,
+        severity: 'DEGRADED',
+        description: 'Stock queries blocked waiting for MongoDB connection slot.'
+      });
+      results.anomalies.push({
         service: 'order-service',
         metric: 'order_downstream_payment_errors_total',
         value: 35,
@@ -202,9 +218,6 @@ class PrometheusAdapter {
         severity: 'HIGH',
         description: 'HTTP 502 Bad Gateway customer checkout errors propagated to client.'
       });
-      results.services['payment-service'] = { status: 'ONLINE', endpoint: this.serviceEndpoints['payment-service'], lastScrape: new Date().toISOString() };
-      results.services['order-service'] = { status: 'ONLINE', endpoint: this.serviceEndpoints['order-service'], lastScrape: new Date().toISOString() };
-      results.services['gateway-service'] = { status: 'ONLINE', endpoint: this.serviceEndpoints['gateway-service'], lastScrape: new Date().toISOString() };
     } else if (this.activeScenario === 'downstream_failure') {
       results.anomalies.push({
         service: 'payment-service',
@@ -230,9 +243,98 @@ class PrometheusAdapter {
         severity: 'HIGH',
         description: 'Gateway customer checkout errors: 42 5xx errors propagated.'
       });
-      results.services['payment-service'] = { status: 'ONLINE', endpoint: this.serviceEndpoints['payment-service'], lastScrape: new Date().toISOString() };
-      results.services['order-service'] = { status: 'ONLINE', endpoint: this.serviceEndpoints['order-service'], lastScrape: new Date().toISOString() };
-      results.services['gateway-service'] = { status: 'ONLINE', endpoint: this.serviceEndpoints['gateway-service'], lastScrape: new Date().toISOString() };
+    } else if (this.activeScenario === 'cache_stampede') {
+      results.anomalies.push({
+        service: 'cache-redis',
+        metric: 'redis_memory_utilization_ratio',
+        value: 0.98,
+        threshold: 0.85,
+        severity: 'CRITICAL',
+        description: 'Redis memory exhaustion (98%) and eviction storm (>4500 keys/sec dropped).'
+      });
+      results.anomalies.push({
+        service: 'auth-service',
+        metric: 'auth_session_validation_latency_ms',
+        value: 890,
+        threshold: 80,
+        severity: 'DEGRADED',
+        description: 'Session token cache miss rate 94%: DB fallback latency spike.'
+      });
+      results.anomalies.push({
+        service: 'gateway-service',
+        metric: 'gateway_auth_proxy_timeouts_total',
+        value: 28,
+        threshold: 0,
+        severity: 'HIGH',
+        description: 'Gateway authentication filter timeout: 28 requests delayed/failed.'
+      });
+    } else if (this.activeScenario === 'inventory_lock') {
+      results.anomalies.push({
+        service: 'inventory-service',
+        metric: 'inventory_lock_wait_seconds',
+        value: 14.2,
+        threshold: 1.0,
+        severity: 'CRITICAL',
+        description: 'Distributed row lock deadlock on inventory SKU allocation table.'
+      });
+      results.anomalies.push({
+        service: 'order-service',
+        metric: 'order_stock_reservation_timeouts_total',
+        value: 39,
+        threshold: 0,
+        severity: 'HIGH',
+        description: 'Stock reservation RPC failed deadline: 39 checkout attempts stalled.'
+      });
+      results.anomalies.push({
+        service: 'gateway-service',
+        metric: 'gateway_checkout_errors_total',
+        value: 39,
+        threshold: 0,
+        severity: 'HIGH',
+        description: 'HTTP 504 Gateway Timeout: order checkout pipeline blocked.'
+      });
+    } else if (this.activeScenario === 'payment_gateway_down') {
+      results.anomalies.push({
+        service: 'payment-gateway',
+        metric: 'external_gateway_http_status',
+        value: 503,
+        threshold: 200,
+        severity: 'CRITICAL',
+        description: 'Third-party Stripe API endpoint returning HTTP 503 Service Unavailable.'
+      });
+      results.anomalies.push({
+        service: 'payment-service',
+        metric: 'circuit_breaker_state',
+        value: 'OPEN',
+        threshold: 0,
+        severity: 'DEGRADED',
+        description: 'Fintech circuit breaker tripped to OPEN after 15 consecutive external drops.'
+      });
+      results.anomalies.push({
+        service: 'order-service',
+        metric: 'order_payment_rejections_total',
+        value: 27,
+        threshold: 0,
+        severity: 'HIGH',
+        description: 'Payment authorization rejected by upstream provider.'
+      });
+    } else if (this.activeScenario === 'auth_storm') {
+      results.anomalies.push({
+        service: 'auth-service',
+        metric: 'auth_cpu_utilization_ratio',
+        value: 0.98,
+        threshold: 0.85,
+        severity: 'CRITICAL',
+        description: 'Expired JWT flood causing crypto signature thread starvation (98% CPU).'
+      });
+      results.anomalies.push({
+        service: 'gateway-service',
+        metric: 'gateway_auth_rejections_total',
+        value: 120,
+        threshold: 0,
+        severity: 'HIGH',
+        description: 'Ingress burst: 120 client requests rejected with HTTP 401 Unauthorized.'
+      });
     }
 
     return results;

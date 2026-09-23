@@ -1,5 +1,190 @@
 [
   {
+    "id": "INC-4130",
+    "title": "Service inventory-service is the deepest dependency exhibiting failure in t...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "inventory-service",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T18:59:57.570Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in inventory-service. Telemetry shows: Distributed row lock deadlock on inventory SKU allocation table..",
+      "severity": "P1-Critical",
+      "probableRootCause": "Service inventory-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Distributed row lock deadlock on inventory SKU allocation table..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified inventory-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "inventory-service",
+        "cascading": [
+          "order-service",
+          "gateway-service"
+        ],
+        "impact": "Cascading failure propagating to upstream services: order-service, gateway-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Metric] inventory-service: inventory_lock_wait_seconds = 14.2 (Distributed row lock deadlock on inventory SKU allocation table.)",
+        "[Metric] order-service: order_stock_reservation_timeouts_total = 39 (Stock reservation RPC failed deadline: 39 checkout attempts stalled.)",
+        "[Metric] gateway-service: gateway_checkout_errors_total = 39 (HTTP 504 Gateway Timeout: order checkout pipeline blocked.)",
+        "[Log] inventory-service: \"[inventory-service] LockWaitTimeout: Deadlock found when trying to get lock for stock SKU allocation table.\"",
+        "[Log] order-service: \"[order-service] InventoryRpcException: Reservation RPC timed out after 3000ms deadline.\"",
+        "[Log] gateway-service: \"[gateway-service] HTTP 504 Gateway Timeout: Customer checkout order could not reserve inventory.\""
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Distributed Inventory Lock Deadlock",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-06): ## Immediate Remediation Steps (SOP-06)\n1. **Kill Hanging Lock Queries & Reset Allocation Queue**:\n   - Terminate active deadlocked database queries and reset inventory reservation..."
+      },
+      "timeline": [
+        {
+          "time": "12:29:33 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 504 Gateway Timeout on /api/v1/auth/verify - Ingress authentication queue blocked.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:29:57 am",
+          "service": "inventory-service",
+          "event": "[inventory-service] LockWaitTimeout: Deadlock found when trying to get lock for stock SKU allocation table.",
+          "type": "origin"
+        },
+        {
+          "time": "12:29:57 am",
+          "service": "order-service",
+          "event": "[order-service] InventoryRpcException: Reservation RPC timed out after 3000ms deadline.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:29:57 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 504 Gateway Timeout: Customer checkout order could not reserve inventory.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:29:57 am",
+          "service": "inventory-service",
+          "event": "Distributed row lock deadlock on inventory SKU allocation table.",
+          "type": "origin"
+        },
+        {
+          "time": "12:29:57 am",
+          "service": "order-service",
+          "event": "Stock reservation RPC failed deadline: 39 checkout attempts stalled.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:29:57 am",
+          "service": "gateway-service",
+          "event": "HTTP 504 Gateway Timeout: order checkout pipeline blocked.",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart and Healthcheck inventory-service",
+        "description": "Verify container or process lifecycle for inventory-service, check host resource headroom, and verify socket connectivity.",
+        "command": "POST /api/remediate { service: \"inventory-service\", action: \"restart\" }",
+        "actionType": "restart",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-1465",
+    "title": "Service cache-redis is the deepest dependency exhibiting failure in the cal...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "cache-redis",
+    "severity": "P1-Critical",
+    "status": "OPEN",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T18:59:52.580Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in cache-redis. Telemetry shows: Redis memory exhaustion (98%) and eviction storm (>4500 keys/sec dropped)..",
+      "severity": "P1-Critical",
+      "probableRootCause": "Service cache-redis is the deepest dependency exhibiting failure in the call chain. Active anomaly: Redis memory exhaustion (98%) and eviction storm (>4500 keys/sec dropped)..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified cache-redis as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "cache-redis",
+        "cascading": [
+          "auth-service",
+          "gateway-service"
+        ],
+        "impact": "Cascading failure propagating to upstream services: auth-service, gateway-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Metric] cache-redis: redis_memory_utilization_ratio = 0.98 (Redis memory exhaustion (98%) and eviction storm (>4500 keys/sec dropped).)",
+        "[Metric] auth-service: auth_session_validation_latency_ms = 890 (Session token cache miss rate 94%: DB fallback latency spike.)",
+        "[Metric] gateway-service: gateway_auth_proxy_timeouts_total = 28 (Gateway authentication filter timeout: 28 requests delayed/failed.)",
+        "[Log] cache-redis: \"[cache-redis] OOM command not allowed: maxmemory reached. 4500 keys evicted/sec under high write load.\"",
+        "[Log] gateway-service: \"[gateway-service] HTTP 504 Gateway Timeout on /api/v1/auth/verify - Ingress authentication queue blocked.\""
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Redis Cache Avalanche & Eviction Storm",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-05): ## Immediate Remediation Steps (SOP-05)\n1. **Eviction Policy Tuning & Cache Flush**:\n   - Flush transient session keys and adjust eviction policy to `volatile-lru`.\n   - Command: `..."
+      },
+      "timeline": [
+        {
+          "time": "12:29:33 am",
+          "service": "cache-redis",
+          "event": "[cache-redis] OOM command not allowed: maxmemory reached. 4500 keys evicted/sec under high write load.",
+          "type": "origin"
+        },
+        {
+          "time": "12:29:33 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 504 Gateway Timeout on /api/v1/auth/verify - Ingress authentication queue blocked.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:29:52 am",
+          "service": "cache-redis",
+          "event": "Redis memory exhaustion (98%) and eviction storm (>4500 keys/sec dropped).",
+          "type": "origin"
+        },
+        {
+          "time": "12:29:52 am",
+          "service": "auth-service",
+          "event": "Session token cache miss rate 94%: DB fallback latency spike.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:29:52 am",
+          "service": "gateway-service",
+          "event": "Gateway authentication filter timeout: 28 requests delayed/failed.",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart and Healthcheck cache-redis",
+        "description": "Verify container or process lifecycle for cache-redis, check host resource headroom, and verify socket connectivity.",
+        "command": "POST /api/remediate { service: \"cache-redis\", action: \"restart\" }",
+        "actionType": "restart",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "remediationAudit": null
+  },
+  {
     "id": "INC-1923",
     "title": "A cascading failure or critical resource exhaustion (such as database conne...",
     "description": "Automated incident generated from cross-source telemetry correlation.",
