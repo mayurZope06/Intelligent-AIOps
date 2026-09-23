@@ -131,6 +131,20 @@ code, pre, .font-mono {
   gap: 12px;
 }
 
+.brand-logo-wrapper {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease;
+  cursor: pointer;
+}
+
+.brand-logo-wrapper:hover {
+  transform: scale(1.08);
+}
+
+.brand-logo-wrapper:hover .brand-logo-ambient-glow {
+  opacity: 1 !important;
+  filter: blur(8px) !important;
+}
+
 .brand-icon {
   width: 28px;
   height: 28px;
@@ -145,9 +159,11 @@ code, pre, .font-mono {
 
 .brand-title {
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(180deg, #ffffff 40%, rgba(255, 255, 255, 0.8) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .brand-badge {

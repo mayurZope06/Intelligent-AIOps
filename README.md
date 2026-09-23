@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🧠 Intelligent AIOps Platform
+<img src="./frontend/public/logo.png" alt="Intelligent AIOps Logo" width="130" style="border-radius: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 12px;" />
+
+# Intelligent AIOps Platform
 ### Autonomous Observability, Cross-Boundary Signal Correlation & Generative AI Root Cause Analysis
 
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%7C%20Vite-61dafb?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
