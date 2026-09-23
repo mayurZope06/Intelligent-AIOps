@@ -5,12 +5,12 @@
     "description": "Automated incident generated from cross-source telemetry correlation.",
     "service": "auth-service",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "AUTOMATED_CORRELATION",
     "createdAt": "2026-09-23T19:10:44.079Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolvedAt": "2026-09-23T19:12:00.539Z",
+    "resolutionDurationSeconds": 76,
+    "resolutionNotes": "Remediation action 'restart' approved by DevOps SRE Lead and executed successfully.",
     "notes": [],
     "analysis": {
       "incidentSummary": "Service impairment detected originating in auth-service. Telemetry shows: Expired JWT flood causing crypto signature thread starvation (98% CPU)..",
@@ -99,7 +99,13 @@
       "provider": "Topological Causal Engine (Deterministic)",
       "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
     },
-    "remediationAudit": null
+    "remediationAudit": {
+      "incidentId": "INC-1824",
+      "action": "restart",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "timestamp": "2026-09-23T19:12:00.530Z"
+    }
   },
   {
     "id": "INC-4130",

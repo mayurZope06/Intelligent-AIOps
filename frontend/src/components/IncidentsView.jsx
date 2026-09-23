@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   AlertCircle, Search, Plus, Filter, Clock, CheckCircle2, 
-  MessageSquare, Trash2, X, ChevronRight, ShieldAlert, Sparkles 
+  MessageSquare, Trash2, X, ChevronRight, ShieldAlert, Cpu 
 } from 'lucide-react';
 
 export default function IncidentsView({
@@ -250,7 +250,7 @@ export default function IncidentsView({
                 }}
                 onClick={() => onDiagnoseIncident && onDiagnoseIncident(selectedIncident.id)}
               >
-                <Sparkles size={14} style={{ marginRight: 6 }} />
+                <Cpu size={14} style={{ marginRight: 6 }} />
                 <span>Diagnose with Gemini 3.5 Flash Lite</span>
               </button>
             </div>

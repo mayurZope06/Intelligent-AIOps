@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Activity, Layers, AlertCircle, Terminal, BookOpen, 
-  History, Settings, Sparkles, RefreshCw 
+  History, Settings, Cpu, RefreshCw 
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 
@@ -110,7 +110,7 @@ export default function Header({
           {isAnalyzing ? (
             <RefreshCw size={13} className="spin" />
           ) : (
-            <Sparkles size={13} color="#bf5af2" />
+            <Cpu size={13} color="#64d2ff" />
           )}
           <span>{isAnalyzing ? 'Analyzing...' : 'Diagnose'}</span>
         </button>

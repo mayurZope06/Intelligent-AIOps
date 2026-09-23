@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, X, ShieldAlert, CheckCircle2, ArrowRight, Play, BookOpen, Layers } from 'lucide-react';
+import { Cpu, X, ShieldAlert, CheckCircle2, ArrowRight, Play, BookOpen, Layers } from 'lucide-react';
 
 export default function RCAModal({
   isOpen,
@@ -52,7 +52,7 @@ export default function RCAModal({
         {/* Modal Header */}
         <div className="apple-modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Sparkles size={16} color="#bf5af2" />
+            <Cpu size={16} color="#64d2ff" />
             <div>
               <span style={{ fontWeight: 600, fontSize: '14px' }}>AI Root Cause Analysis (RCA)</span>
               <div style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>
