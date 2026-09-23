@@ -1,5 +1,116 @@
 [
   {
+    "id": "INC-9200",
+    "title": "Service payment-service is the deepest dependency exhibiting failure in the...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "RESOLVED",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-23T19:14:53.887Z",
+    "resolvedAt": "2026-09-23T19:15:00.824Z",
+    "resolutionDurationSeconds": 7,
+    "resolutionNotes": "Remediation action 'restart' approved by DevOps SRE Lead and executed successfully.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in payment-service. Telemetry shows: Payment service worker process unresponsive / thread pool deadlock..",
+      "severity": "P1-Critical",
+      "probableRootCause": "Service payment-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Payment service worker process unresponsive / thread pool deadlock..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified payment-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "order-service",
+          "gateway-service"
+        ],
+        "impact": "Cascading failure propagating to upstream services: order-service, gateway-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Metric] payment-service: service_health = 0 (Payment service worker process unresponsive / thread pool deadlock.)",
+        "[Metric] order-service: order_downstream_payment_errors_total = 42 (Downstream payment-service timeout: 42 order checkout RPCs failed.)",
+        "[Metric] gateway-service: gateway_checkout_errors_total = 42 (Gateway customer checkout errors: 42 5xx errors propagated.)",
+        "[Log] payment-service: \"[payment-service] FATAL: Process out of memory / thread deadlock in payment processing queue.\"",
+        "[Log] order-service: \"[order-service] ConnectionRefused: http://localhost:4002/api/charge unreached.\"",
+        "[Log] gateway-service: \"[gateway-service] HTTP 502 Bad Gateway on checkout route.\""
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Service Timeout & Cascading Latency",
+        "guidanceSummary": "Root Cause Analysis: ## Root Cause Analysis\r\nCascading failure typically starts in an edge or deep dependency (e.g. `payment-service` or external payment provider). Because upstream services (`order-se..."
+      },
+      "timeline": [
+        {
+          "time": "12:42:17 am",
+          "service": "payment-service",
+          "event": "[payment-service] WorkerThreadStarvation: Event loop lag 520ms. CPU usage 94% exceeds threshold 85%.",
+          "type": "origin"
+        },
+        {
+          "time": "12:42:17 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 504 Gateway Timeout on /api/v1/checkout.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:42:21 am",
+          "service": "payment-service",
+          "event": "[payment-service] FATAL: Process out of memory / thread deadlock in payment processing queue.",
+          "type": "origin"
+        },
+        {
+          "time": "12:42:21 am",
+          "service": "order-service",
+          "event": "[order-service] ConnectionRefused: http://localhost:4002/api/charge unreached.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:42:21 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 502 Bad Gateway on checkout route.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:44:52 am",
+          "service": "payment-service",
+          "event": "Payment service worker process unresponsive / thread pool deadlock.",
+          "type": "origin"
+        },
+        {
+          "time": "12:44:52 am",
+          "service": "order-service",
+          "event": "Downstream payment-service timeout: 42 order checkout RPCs failed.",
+          "type": "cascade"
+        },
+        {
+          "time": "12:44:52 am",
+          "service": "gateway-service",
+          "event": "Gateway customer checkout errors: 42 5xx errors propagated.",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart and Healthcheck payment-service",
+        "description": "Verify container or process lifecycle for payment-service, check host resource headroom, and verify socket connectivity.",
+        "command": "POST /api/remediate { service: \"payment-service\", action: \"restart\" }",
+        "actionType": "restart",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "remediationAudit": {
+      "incidentId": "INC-9200",
+      "action": "restart",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "timestamp": "2026-09-23T19:15:00.805Z"
+    }
+  },
+  {
     "id": "INC-1824",
     "title": "Service auth-service is the deepest dependency exhibiting failure in the ca...",
     "description": "Automated incident generated from cross-source telemetry correlation.",

@@ -11,6 +11,7 @@ import RunbooksView from './components/RunbooksView';
 import AuditView from './components/AuditView';
 import SettingsModal from './components/SettingsModal';
 import RCAModal from './components/RCAModal';
+import ToastContainer from './components/ToastContainer';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -140,6 +141,20 @@ export default function App() {
   // Connectivity & Test Scenarios
   const [prometheusConnected, setPrometheusConnected] = useState(false);
   const [activeScenario, setActiveScenario] = useState('none');
+
+  // Professional Apple Toast Notifications State
+  const [toasts, setToasts] = useState([]);
+  const addToast = useCallback((message, type = 'info', title = null) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    setToasts(prev => [...prev, { id, message, type, title }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4500);
+  }, []);
+
+  const dismissToast = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   // 1. Fetch Topology Graph
   const fetchGraph = useCallback(async () => {
@@ -329,7 +344,7 @@ export default function App() {
       const res = await axios.post(`${API_BASE}/analyze`, payload);
       
       if (res.data.status === 'OK') {
-        alert('Cluster nominal. No anomalous telemetry detected across services.');
+        addToast('Cluster nominal. No anomalous telemetry detected across microservices.', 'info', 'Cluster Nominal');
       } else {
         setLatestRcaReport({
           ...res.data.analysis,
@@ -344,7 +359,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      alert(`AI Diagnosis Error: ${err.response?.data?.error || err.message}`);
+      addToast(err.response?.data?.error || err.message, 'error', 'AI Diagnosis Error');
     } finally {
       setIsAnalyzing(false);
     }
@@ -367,9 +382,9 @@ export default function App() {
         fetchAudit()
       ]);
       setShowRcaModal(false);
-      alert('Remediation action successfully approved and executed. Dependency graph and cluster state restored to HEALTHY.');
+      addToast('Remediation action approved and executed. Dependency graph and cluster state restored to HEALTHY.', 'success', 'Remediation Executed');
     } catch (err) {
-      alert(`Remediation failed: ${err.message}`);
+      addToast(err.message, 'error', 'Remediation Failed');
     } finally {
       setRemediating(false);
     }
@@ -381,8 +396,9 @@ export default function App() {
       const res = await axios.post(`${API_BASE}/incidents`, newIncidentData);
       fetchIncidents();
       setSelectedIncident(res.data);
+      addToast('Incident registered in cluster incident queue.', 'success', 'Incident Declared');
     } catch (err) {
-      alert(`Failed to create incident: ${err.message}`);
+      addToast(err.message, 'error', 'Failed to Create Incident');
     }
   };
 
@@ -391,8 +407,9 @@ export default function App() {
       const res = await axios.patch(`${API_BASE}/incidents/${id}`, { status });
       fetchIncidents();
       setSelectedIncident(res.data);
+      addToast(`Incident status updated to ${status}.`, 'info', 'Status Updated');
     } catch (err) {
-      alert(`Failed to update status: ${err.message}`);
+      addToast(err.message, 'error', 'Failed to Update Status');
     }
   };
 
@@ -402,8 +419,9 @@ export default function App() {
       await axios.delete(`${API_BASE}/incidents/${id}`);
       fetchIncidents();
       if (selectedIncident?.id === id) setSelectedIncident(null);
+      addToast('Incident record permanently deleted.', 'info', 'Incident Deleted');
     } catch (err) {
-      alert(`Failed to delete incident: ${err.message}`);
+      addToast(err.message, 'error', 'Failed to Delete Incident');
     }
   };
 
@@ -416,8 +434,9 @@ export default function App() {
       const res = await axios.get(`${API_BASE}/incidents/${id}`);
       setSelectedIncident(res.data);
       fetchIncidents();
+      addToast('Note appended to incident timeline.', 'success', 'Note Added');
     } catch (err) {
-      alert(`Failed to add note: ${err.message}`);
+      addToast(err.message, 'error', 'Failed to Add Note');
     }
   };
 
@@ -427,8 +446,9 @@ export default function App() {
       await axios.post(`${API_BASE}/rag/runbooks`, runbookData);
       fetchRunbooks();
       setSelectedRunbook(runbookData);
+      addToast('Standard operating procedure saved and indexed in RAG store.', 'success', 'Runbook Saved');
     } catch (err) {
-      alert(`Failed to save runbook: ${err.message}`);
+      addToast(err.message, 'error', 'Failed to Save Runbook');
     }
   };
 
@@ -438,8 +458,9 @@ export default function App() {
       await axios.delete(`${API_BASE}/rag/runbooks/${id}`);
       fetchRunbooks();
       setSelectedRunbook(null);
+      addToast('Runbook deleted from operational library.', 'info', 'Runbook Removed');
     } catch (err) {
-      alert(`Failed to delete runbook: ${err.message}`);
+      addToast(err.message, 'error', 'Failed to Delete Runbook');
     }
   };
 
@@ -448,8 +469,9 @@ export default function App() {
     try {
       const res = await axios.post(`${API_BASE}/config/settings`, settings);
       setSettingsStatus(res.data);
+      addToast('Configuration settings updated successfully.', 'success', 'Settings Saved');
     } catch (err) {
-      alert(`Failed to save settings: ${err.message}`);
+      addToast(err.message, 'error', 'Failed to Save Settings');
     }
   };
 
@@ -551,6 +573,9 @@ export default function App() {
         settingsStatus={settingsStatus}
         onSaveSettings={handleSaveSettings}
       />
+
+      {/* Luxury Apple-style Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }
