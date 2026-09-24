@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   AlertCircle, Search, Plus, Filter, Clock, CheckCircle2, 
   MessageSquare, Trash2, X, ChevronRight, ShieldAlert, Cpu 
-} from 'lucide-react';
+} from 'lucide-react';     
 
 export default function IncidentsView({
   incidents,
@@ -408,3 +408,4 @@ export default function IncidentsView({
     </div>
   );
 }
+   
