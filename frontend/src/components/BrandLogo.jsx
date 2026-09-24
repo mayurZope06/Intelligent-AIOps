@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 /**
  * Creative Brand Logo for Intelligent AIOps
- * Renders the glowing cybernetic neural brain & telemetry wave emblem with ambient backlighting.
+ * Renders the glowing cybernetic neural en brain & telemetry wave emblem with ambient backlighting.
  */
 export default function BrandLogo({ size = 32, showGlow = true }) {
   const [imageError, setImageError] = useState(false);
