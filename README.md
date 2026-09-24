@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="./frontend/public/logo.png" alt="Intelligent AIOps Logo" width="130" style="border-radius: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 12px;" />
-
 # Intelligent AIOps Platform
 ### Autonomous Observability, Cross-Boundary Signal Correlation & Generative AI Root Cause Analysis
 
