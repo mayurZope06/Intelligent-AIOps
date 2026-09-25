@@ -7,7 +7,7 @@ class IncidentManager {
     this.init();
   }
 
-  init() {
+  init() { 
     const existing = storage.read(this.incidentsFile, null);
     if (!existing) {
       storage.write(this.incidentsFile, []);
