@@ -12,7 +12,7 @@
     "approvedBy": "DevOps SRE Lead",
     "result": "REMEDIATED_AND_RECOVERED",
     "timestamp": "2026-09-23T19:15:00.805Z"
-  },
+  }, 
   {
     "incidentId": "INC-1824",
     "action": "restart",
