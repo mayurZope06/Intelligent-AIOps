@@ -17,7 +17,7 @@ const port = process.env.PORT || 4000;
 
 // Configurable downstream endpoints via environment variables
 const orderServiceUrl = process.env.ORDER_SERVICE_URL || 'http://localhost:4001';
-const authServiceUrl = process.env.AUTH_SERVICE_URL || '';
+const authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:4003';
 const downstreamTimeoutMs = Number(process.env.DOWNSTREAM_TIMEOUT_MS) || 3000;
 
 app.use(express.json());

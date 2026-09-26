@@ -20,40 +20,54 @@ const DEFAULT_NODES = [
   {
     id: 'frontend',
     type: 'serviceNode',
-    position: { x: 80, y: 240 },
+    position: { x: 50, y: 220 },
     data: { id: 'frontend', name: 'Client / Web Frontend', status: 'HEALTHY', port: 5173, team: 'Frontend Platform', type: 'client' }
   },
   {
     id: 'gateway-service',
     type: 'serviceNode',
-    position: { x: 360, y: 240 },
+    position: { x: 300, y: 220 },
     data: { id: 'gateway-service', name: 'API Gateway', status: 'HEALTHY', port: 4000, team: 'Core Infrastructure', type: 'gateway' }
+  },
+  {
+    id: 'auth-service',
+    type: 'serviceNode',
+    position: { x: 560, y: 100 },
+    data: { id: 'auth-service', name: 'Auth & IAM Service', status: 'HEALTHY', port: 4003, team: 'Security & IAM', type: 'service' }
   },
   {
     id: 'order-service',
     type: 'serviceNode',
-    position: { x: 640, y: 240 },
+    position: { x: 560, y: 280 },
     data: { id: 'order-service', name: 'Order Service', status: 'HEALTHY', port: 4001, team: 'Commerce Team', type: 'service' }
+  },
+  {
+    id: 'inventory-service',
+    type: 'serviceNode',
+    position: { x: 820, y: 180 },
+    data: { id: 'inventory-service', name: 'Inventory Service', status: 'HEALTHY', port: 4004, team: 'Logistics Team', type: 'service' }
   },
   {
     id: 'payment-service',
     type: 'serviceNode',
-    position: { x: 920, y: 240 },
+    position: { x: 820, y: 380 },
     data: { id: 'payment-service', name: 'Payment Service', status: 'HEALTHY', port: 4002, team: 'Fintech Team', type: 'service' }
   },
   {
     id: 'database',
     type: 'serviceNode',
-    position: { x: 1200, y: 240 },
+    position: { x: 1080, y: 380 },
     data: { id: 'database', name: 'MongoDB Cluster', status: 'HEALTHY', port: 27017, team: 'Database Ops', type: 'database' }
   }
 ];
 
 const DEFAULT_EDGES = [
-  { id: 'e-client-gw', source: 'frontend', target: 'gateway-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-gw-order', source: 'gateway-service', target: 'order-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-order-payment', source: 'order-service', target: 'payment-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-payment-db', source: 'payment-service', target: 'database', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } }
+  { id: 'e-client-gw', source: 'frontend', target: 'gateway-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.25)', strokeWidth: 1.5 } },
+  { id: 'e-gw-auth', source: 'gateway-service', target: 'auth-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.25)', strokeWidth: 1.5 } },
+  { id: 'e-gw-order', source: 'gateway-service', target: 'order-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.25)', strokeWidth: 1.5 } },
+  { id: 'e-order-inv', source: 'order-service', target: 'inventory-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.25)', strokeWidth: 1.5 } },
+  { id: 'e-order-payment', source: 'order-service', target: 'payment-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.25)', strokeWidth: 1.5 } },
+  { id: 'e-payment-db', source: 'payment-service', target: 'database', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.25)', strokeWidth: 1.5 } }
 ];
 
 export default function App() {
@@ -64,6 +78,8 @@ export default function App() {
   const [nodes, setNodes] = useState(DEFAULT_NODES);
   const [edges, setEdges] = useState(DEFAULT_EDGES);
   const [selectedNode, setSelectedNode] = useState(null);
+  const [clusterStatus, setClusterStatus] = useState('NOMINAL');
+  const [telemetryStatus, setTelemetryStatus] = useState('NOMINAL');
 
   // Incidents State
   const [incidents, setIncidents] = useState([]);
@@ -122,24 +138,25 @@ export default function App() {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // 1. Fetch Topology Graph
+  // 1. Fetch Topology Graph (Derived from live telemetry and actual downstream request failures)
   const fetchGraph = useCallback(async () => {
     try {
       const res = await axios.get(`${API_BASE}/graph`);
       const rawNodes = res.data.nodes || [];
       const rawEdges = res.data.edges || [];
 
+      if (res.data.clusterStatus) setClusterStatus(res.data.clusterStatus);
+      if (res.data.telemetryStatus) setTelemetryStatus(res.data.telemetryStatus);
+      if (res.data.prometheusConnected !== undefined) setPrometheusConnected(res.data.prometheusConnected);
+
       const positions = {
-        'frontend': { x: 40, y: 240 },
-        'gateway-service': { x: 300, y: 240 },
-        'auth-service': { x: 580, y: 100 },
-        'cache-redis': { x: 860, y: 100 },
-        'order-service': { x: 580, y: 320 },
-        'inventory-service': { x: 860, y: 220 },
-        'payment-service': { x: 860, y: 340 },
-        'notification-service': { x: 860, y: 460 },
-        'database': { x: 1140, y: 260 },
-        'payment-gateway': { x: 1140, y: 390 }
+        'frontend': { x: 50, y: 220 },
+        'gateway-service': { x: 300, y: 220 },
+        'auth-service': { x: 560, y: 100 },
+        'order-service': { x: 560, y: 280 },
+        'inventory-service': { x: 820, y: 180 },
+        'payment-service': { x: 820, y: 380 },
+        'database': { x: 1080, y: 380 }
       };
 
       const flowNodes = rawNodes.map(n => ({
@@ -158,35 +175,35 @@ export default function App() {
         }
       }));
 
+      // Dependency edges display affected request paths separately from individual node health
       const flowEdges = rawEdges.map(e => {
-        const sourceNode = flowNodes.find(n => n.id === e.source);
-        const targetNode = flowNodes.find(n => n.id === e.target);
-        
-        const isCritical = sourceNode?.data?.status === 'CRITICAL' || targetNode?.data?.status === 'CRITICAL';
-        const isDegraded = sourceNode?.data?.status === 'DEGRADED' || targetNode?.data?.status === 'DEGRADED';
-        const isOffline = sourceNode?.data?.status === 'OFFLINE' || targetNode?.data?.status === 'OFFLINE';
-        const isFailing = isCritical || isDegraded || isOffline;
+        const isAffected = e.isAffectedPath || e.status === 'AFFECTED';
+        const isCritical = e.severity === 'CRITICAL';
+        const isDegraded = e.severity === 'DEGRADED';
 
         let strokeColor = 'rgba(255, 255, 255, 0.25)';
-        if (isCritical || isOffline) {
-          strokeColor = '#ff453a';
-        } else if (isDegraded) {
-          strokeColor = '#ff9f0a';
+        if (isAffected) {
+          if (isCritical) {
+            strokeColor = '#ff453a';
+          } else if (isDegraded) {
+            strokeColor = '#ff9f0a';
+          }
         }
 
         return {
           id: e.id,
           source: e.source,
           target: e.target,
+          label: e.label,
           animated: true,
           style: {
             stroke: strokeColor,
-            strokeWidth: isFailing ? 2.5 : 1,
-            strokeDasharray: isFailing ? '5 5' : undefined
+            strokeWidth: isAffected ? 2.5 : 1.5,
+            strokeDasharray: isAffected ? '5 5' : undefined
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: isFailing ? strokeColor : 'rgba(255, 255, 255, 0.4)'
+            color: isAffected ? strokeColor : 'rgba(255, 255, 255, 0.4)'
           }
         };
       });
@@ -584,6 +601,8 @@ export default function App() {
         setActiveTab={setActiveTab}
         openIncidentsCount={incidentMetrics.openIncidents}
         hasCriticalIncident={hasCriticalIncident}
+        clusterStatus={clusterStatus}
+        telemetryStatus={telemetryStatus}
         prometheusConnected={prometheusConnected}
         isAnalyzing={isAnalyzing}
         onRunAiDiagnosis={handleRunAiDiagnosis}

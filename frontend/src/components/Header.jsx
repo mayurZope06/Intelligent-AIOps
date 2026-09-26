@@ -10,6 +10,8 @@ export default function Header({
   setActiveTab,
   openIncidentsCount,
   hasCriticalIncident,
+  clusterStatus = 'NOMINAL',
+  telemetryStatus = 'NOMINAL',
   prometheusConnected,
   isAnalyzing,
   onRunAiDiagnosis,
@@ -76,10 +78,42 @@ export default function Header({
 
       {/* Global Status & Quick Actions */}
       <div className="header-actions">
-        {/* Cluster Telemetry State */}
-        <div className="system-status-pill" title={prometheusConnected ? 'Prometheus Telemetry Scraper Active' : 'Direct Service Probing (Prometheus Server Unreachable)'}>
-          <span className={`status-dot ${hasCriticalIncident ? 'status-dot-critical' : 'status-dot-healthy'}`} />
-          <span>{hasCriticalIncident ? 'Cluster Anomaly' : 'Cluster Nominal'}</span>
+        {/* Dynamic Cluster Health State */}
+        <div 
+          className="system-status-pill" 
+          title={`Cluster Health: ${clusterStatus} (derived from live service telemetry)`}
+        >
+          <span className={`status-dot ${
+            clusterStatus === 'CRITICAL' ? 'status-dot-critical' :
+            clusterStatus === 'DEGRADED' ? 'status-dot-warning' :
+            clusterStatus === 'OFFLINE' ? 'status-dot-offline' :
+            'status-dot-healthy'
+          }`} />
+          <span>
+            {clusterStatus === 'CRITICAL' ? 'Cluster Critical' :
+             clusterStatus === 'DEGRADED' ? 'Cluster Degraded' :
+             clusterStatus === 'OFFLINE' ? 'Cluster Offline' :
+             'Cluster Nominal'}
+          </span>
+        </div>
+
+        {/* Dynamic Telemetry Status */}
+        <div 
+          className="system-status-pill" 
+          title={prometheusConnected 
+            ? 'Prometheus Telemetry Scraper Active (:9090)' 
+            : 'Direct Service Probing Active (Prometheus Server Unreachable)'}
+        >
+          <span className={`status-dot ${
+            telemetryStatus === 'OFFLINE' ? 'status-dot-offline' :
+            telemetryStatus === 'ANOMALY' ? 'status-dot-warning' :
+            'status-dot-healthy'
+          }`} />
+          <span>
+            {telemetryStatus === 'OFFLINE' ? 'Telemetry Offline' :
+             telemetryStatus === 'ANOMALY' ? 'Telemetry Anomaly' :
+             (prometheusConnected ? 'Prometheus: Live' : 'Probes: Live')}
+          </span>
         </div>
 
         {/* Test Scenario Simulator */}

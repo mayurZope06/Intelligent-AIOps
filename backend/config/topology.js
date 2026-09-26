@@ -11,7 +11,8 @@ const dependencyTopology = {
       port: 5173,
       healthUrl: null,
       criticality: 'High',
-      team: 'Frontend Platform'
+      team: 'Frontend Platform',
+      downstream: ['gateway-service']
     },
     {
       id: 'gateway-service',
@@ -87,15 +88,15 @@ const dependencyTopology = {
     { id: 'e-order-payment', source: 'order-service', target: 'payment-service', label: 'REST / Charge' },
     { id: 'e-payment-db', source: 'payment-service', target: 'database', label: 'Mongo Connection Pool' }
   ],
-  // Pre-computed upstream and downstream dependency lookups
+  // Architectural dependency lookups
   dependencyChains: {
     'database': { downstream: [], upstream: ['payment-service', 'order-service', 'gateway-service', 'frontend'] },
     'payment-service': { downstream: ['database'], upstream: ['order-service', 'gateway-service', 'frontend'] },
     'inventory-service': { downstream: [], upstream: ['order-service', 'gateway-service', 'frontend'] },
     'auth-service': { downstream: [], upstream: ['gateway-service', 'frontend'] },
-    'order-service': { downstream: ['inventory-service', 'payment-service', 'database'], upstream: ['gateway-service', 'frontend'] },
-    'gateway-service': { downstream: ['auth-service', 'order-service', 'inventory-service', 'payment-service', 'database'], upstream: ['frontend'] },
-    'frontend': { downstream: ['gateway-service', 'auth-service', 'order-service'], upstream: [] }
+    'order-service': { downstream: ['inventory-service', 'payment-service'], upstream: ['gateway-service', 'frontend'] },
+    'gateway-service': { downstream: ['auth-service', 'order-service'], upstream: ['frontend'] },
+    'frontend': { downstream: ['gateway-service'], upstream: [] }
   }
 };
 

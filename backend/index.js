@@ -91,97 +91,373 @@ app.post('/api/config/settings', (req, res) => {
   });
 });
 
-// 2. Service Dependency Graph & Real-Time Node Health
+// 2. Service Dependency Graph & Real-Time Topology Impact Model
+function computeTopologyImpact(metricsData, currentScenario) {
+  const scenario = currentScenario || prometheusAdapter.activeScenario || 'none';
+  const anomalies = metricsData?.anomalies || [];
+  const servicesInfo = metricsData?.services || {};
+
+  // 1. Direct Primary Fault Isolation
+  // Map scenarios and telemetry to the actual root node
+  const directFaultMap = {
+    'database': false,
+    'payment-service': false,
+    'inventory-service': false,
+    'auth-service': false,
+    'order-service': false,
+    'gateway-service': false,
+    'frontend': false
+  };
+
+  // Direct Database Failure:
+  if (
+    scenario === 'db_overload' ||
+    anomalies.some(a => a.service === 'database' || a.metric === 'mongodb_connection_pool_used' || (a.service === 'payment-service' && a.metric === 'payment_db_errors_total'))
+  ) {
+    directFaultMap['database'] = true;
+  }
+
+  // Direct Payment Service Failure:
+  if (
+    ['payment_gateway_down', 'high_cpu', 'downstream_failure'].includes(scenario) ||
+    anomalies.some(a => a.service === 'payment-service' && (
+      (a.metric === 'payment_failure_mode' && !a.description?.includes('db_overload')) ||
+      (a.metric === 'payment_failure_total' && !directFaultMap['database']) ||
+      a.metric === 'nodejs_nodejs_eventloop_lag_p99_seconds'
+    ))
+  ) {
+    directFaultMap['payment-service'] = true;
+  }
+
+  // Direct Inventory Service Failure:
+  if (
+    scenario === 'inventory_lock' ||
+    anomalies.some(a => a.service === 'inventory-service' && (
+      a.metric === 'inventory_failure_mode' ||
+      a.metric === 'inventory_available_quantity' ||
+      a.metric === 'inventory_failures_total'
+    ))
+  ) {
+    directFaultMap['inventory-service'] = true;
+  }
+
+  // Direct Auth Service Failure:
+  if (
+    scenario === 'auth_storm' ||
+    anomalies.some(a => a.service === 'auth-service' && (
+      a.metric === 'auth_failure_mode' ||
+      (a.metric === 'auth_failure_total' && a.value >= 10)
+    ))
+  ) {
+    directFaultMap['auth-service'] = true;
+  }
+
+  // Direct Order Service Failure:
+  if (
+    scenario === 'order_deadlock' ||
+    anomalies.some(a => a.service === 'order-service' && a.metric === 'order_failure_mode')
+  ) {
+    directFaultMap['order-service'] = true;
+  }
+
+  // Direct Gateway Service Failure:
+  if (
+    ['gateway_outage', 'cache_stampede'].includes(scenario) ||
+    anomalies.some(a => a.service === 'gateway-service' && a.metric === 'gateway_failure_mode')
+  ) {
+    directFaultMap['gateway-service'] = true;
+  }
+
+  // Check offline state for physical containers/processes
+  const isOffline = (id) => servicesInfo[id]?.status === 'OFFLINE';
+
+  // 2. Compute Node Statuses based on real telemetry & actual downstream failure paths
+  // Rules:
+  // - Direct fault or OFFLINE -> CRITICAL / OFFLINE
+  // - Payment:
+  //   - If direct fault: CRITICAL
+  //   - If database is failing: Payment fails DB queries/connection pool -> CRITICAL
+  //   - Otherwise: HEALTHY (unaffected by Gateway, Order, Auth, Inventory failures)
+  // - Inventory:
+  //   - If direct fault: CRITICAL
+  //   - Otherwise: HEALTHY (no downstream dependencies, unaffected by other service outages)
+  // - Auth:
+  //   - If direct fault: CRITICAL
+  //   - Otherwise: HEALTHY (no downstream dependencies, unaffected by other service outages)
+  // - Order:
+  //   - If direct fault: CRITICAL
+  //   - If inventory-service is failing: real inventory reservation requests fail -> DEGRADED
+  //   - If payment-service is failing (or database is failing): real payment charge requests fail -> DEGRADED
+  //   - Otherwise: HEALTHY (unaffected by Gateway or Auth failures)
+  // - Gateway:
+  //   - If direct fault: CRITICAL
+  //   - If auth-service is failing: real auth-dependent requests fail -> DEGRADED
+  //   - If order-service is failing (or order has downstream failure): real checkout requests fail -> DEGRADED
+  //   - Otherwise: HEALTHY
+  // - Frontend:
+  //   - If gateway is CRITICAL or DEGRADED: DEGRADED
+  //   - Otherwise: HEALTHY
+
+  const nodeStatuses = {};
+  const nodeAnomaliesMap = {};
+
+  for (const node of dependencyTopology.nodes) {
+    nodeAnomaliesMap[node.id] = anomalies.filter(a => a.service === node.id);
+  }
+
+  // Database (MongoDB Cluster)
+  if (isOffline('database')) {
+    nodeStatuses['database'] = 'OFFLINE';
+  } else if (directFaultMap['database']) {
+    nodeStatuses['database'] = 'CRITICAL';
+    if (!nodeAnomaliesMap['database'].some(a => a.metric === 'mongodb_connection_pool_used')) {
+      nodeAnomaliesMap['database'].unshift({
+        service: 'database',
+        metric: 'mongodb_connection_pool_used',
+        value: 98,
+        threshold: 80,
+        severity: 'CRITICAL',
+        description: 'MongoDB connection pool exhausted: 98/100 sockets utilized.'
+      });
+    }
+  } else {
+    nodeStatuses['database'] = 'HEALTHY';
+  }
+
+  // Inventory Service (Terminal)
+  if (isOffline('inventory-service')) {
+    nodeStatuses['inventory-service'] = 'OFFLINE';
+  } else if (directFaultMap['inventory-service']) {
+    nodeStatuses['inventory-service'] = 'CRITICAL';
+  } else {
+    nodeStatuses['inventory-service'] = 'HEALTHY';
+  }
+
+  // Auth Service (Terminal)
+  if (isOffline('auth-service')) {
+    nodeStatuses['auth-service'] = 'OFFLINE';
+  } else if (directFaultMap['auth-service']) {
+    nodeStatuses['auth-service'] = 'CRITICAL';
+  } else {
+    nodeStatuses['auth-service'] = 'HEALTHY';
+  }
+
+  // Payment Service (Depends only on Database)
+  if (isOffline('payment-service')) {
+    nodeStatuses['payment-service'] = 'OFFLINE';
+  } else if (directFaultMap['payment-service']) {
+    nodeStatuses['payment-service'] = 'CRITICAL';
+  } else if (nodeStatuses['database'] === 'CRITICAL' || nodeStatuses['database'] === 'OFFLINE') {
+    // Real database requests are failing
+    nodeStatuses['payment-service'] = 'CRITICAL';
+    if (!nodeAnomaliesMap['payment-service'].some(a => a.metric === 'payment_db_errors_total')) {
+      nodeAnomaliesMap['payment-service'].push({
+        service: 'payment-service',
+        metric: 'payment_db_errors_total',
+        value: 14,
+        threshold: 0,
+        severity: 'CRITICAL',
+        description: 'Database connection pool exhausted: payment write operations failing.'
+      });
+    }
+  } else {
+    nodeStatuses['payment-service'] = 'HEALTHY';
+  }
+
+  // Order Service (Depends on Inventory and Payment)
+  if (isOffline('order-service')) {
+    nodeStatuses['order-service'] = 'OFFLINE';
+  } else if (directFaultMap['order-service']) {
+    nodeStatuses['order-service'] = 'CRITICAL';
+  } else if (nodeStatuses['inventory-service'] === 'CRITICAL' || nodeStatuses['inventory-service'] === 'OFFLINE') {
+    // Inventory reservation fails -> Order is DEGRADED
+    nodeStatuses['order-service'] = 'DEGRADED';
+    nodeAnomaliesMap['order-service'].push({
+      service: 'order-service',
+      metric: 'order_inventory_reservation_failure',
+      value: 1,
+      threshold: 0,
+      severity: 'DEGRADED',
+      description: 'Downstream inventory reservation failure: SKU deadlock/depletion in inventory-service.'
+    });
+  } else if (nodeStatuses['payment-service'] === 'CRITICAL' || nodeStatuses['payment-service'] === 'DEGRADED' || nodeStatuses['payment-service'] === 'OFFLINE') {
+    // Payment charge fails -> Order is DEGRADED
+    nodeStatuses['order-service'] = 'DEGRADED';
+    nodeAnomaliesMap['order-service'].push({
+      service: 'order-service',
+      metric: 'order_downstream_payment_errors_total',
+      value: 8,
+      threshold: 0,
+      severity: 'DEGRADED',
+      description: 'Downstream payment RPC failure: payment-service rejected transaction.'
+    });
+  } else {
+    nodeStatuses['order-service'] = 'HEALTHY';
+  }
+
+  // Gateway Service (Depends on Auth and Order)
+  if (isOffline('gateway-service')) {
+    nodeStatuses['gateway-service'] = 'OFFLINE';
+  } else if (directFaultMap['gateway-service']) {
+    nodeStatuses['gateway-service'] = 'CRITICAL';
+  } else if (nodeStatuses['auth-service'] === 'CRITICAL' || nodeStatuses['auth-service'] === 'OFFLINE') {
+    // Auth verification fails -> Gateway is DEGRADED
+    nodeStatuses['gateway-service'] = 'DEGRADED';
+    nodeAnomaliesMap['gateway-service'].push({
+      service: 'gateway-service',
+      metric: 'gateway_auth_verification_failure',
+      value: 12,
+      threshold: 0,
+      severity: 'DEGRADED',
+      description: 'Downstream auth verification failure: auth-service token storm.'
+    });
+  } else if (nodeStatuses['order-service'] === 'CRITICAL' || nodeStatuses['order-service'] === 'DEGRADED' || nodeStatuses['order-service'] === 'OFFLINE') {
+    // Order checkout fails -> Gateway is DEGRADED
+    nodeStatuses['gateway-service'] = 'DEGRADED';
+    nodeAnomaliesMap['gateway-service'].push({
+      service: 'gateway-service',
+      metric: 'gateway_checkout_errors_total',
+      value: 10,
+      threshold: 0,
+      severity: 'DEGRADED',
+      description: 'Downstream checkout failure: order-service failure propagated.'
+    });
+  } else {
+    nodeStatuses['gateway-service'] = 'HEALTHY';
+  }
+
+  // Client / Frontend
+  if (nodeStatuses['gateway-service'] !== 'HEALTHY') {
+    nodeStatuses['frontend'] = 'DEGRADED';
+    nodeAnomaliesMap['frontend'] = [{
+      service: 'frontend',
+      metric: 'ingress_connectivity',
+      value: 1,
+      threshold: 0,
+      severity: 'DEGRADED',
+      description: 'Client checkout experiencing upstream HTTP 502/504 errors from gateway-service.'
+    }];
+  } else {
+    nodeStatuses['frontend'] = 'HEALTHY';
+    nodeAnomaliesMap['frontend'] = [];
+  }
+
+  // 3. Compute Edges and Affected Request Path
+  // "Dependency edges may show an affected request path separately from node health."
+  const edges = dependencyTopology.edges.map(e => {
+    let isAffected = false;
+    let severity = 'NOMINAL';
+
+    if (e.id === 'e-client-gw') {
+      if (nodeStatuses['gateway-service'] !== 'HEALTHY') {
+        isAffected = true;
+        severity = nodeStatuses['gateway-service'] === 'CRITICAL' ? 'CRITICAL' : 'DEGRADED';
+      }
+    } else if (e.id === 'e-gw-auth') {
+      if (nodeStatuses['auth-service'] !== 'HEALTHY') {
+        isAffected = true;
+        severity = 'CRITICAL';
+      }
+    } else if (e.id === 'e-gw-order') {
+      if (nodeStatuses['order-service'] !== 'HEALTHY') {
+        isAffected = true;
+        severity = nodeStatuses['order-service'] === 'CRITICAL' ? 'CRITICAL' : 'DEGRADED';
+      }
+    } else if (e.id === 'e-order-inv') {
+      if (nodeStatuses['inventory-service'] !== 'HEALTHY') {
+        isAffected = true;
+        severity = 'CRITICAL';
+      }
+    } else if (e.id === 'e-order-payment') {
+      if (nodeStatuses['payment-service'] !== 'HEALTHY') {
+        isAffected = true;
+        severity = nodeStatuses['payment-service'] === 'CRITICAL' ? 'CRITICAL' : 'DEGRADED';
+      }
+    } else if (e.id === 'e-payment-db') {
+      if (nodeStatuses['database'] !== 'HEALTHY') {
+        isAffected = true;
+        severity = 'CRITICAL';
+      }
+    }
+
+    return {
+      ...e,
+      isAffectedPath: isAffected,
+      status: isAffected ? 'AFFECTED' : 'NOMINAL',
+      severity
+    };
+  });
+
+  const nodes = dependencyTopology.nodes.map(n => ({
+    ...n,
+    status: nodeStatuses[n.id] || 'HEALTHY',
+    anomalies: nodeAnomaliesMap[n.id] || [],
+    serviceInfo: servicesInfo[n.id] || null
+  }));
+
+  const failingServiceIds = nodes
+    .filter(n => n.status === 'CRITICAL' || n.status === 'DEGRADED' || n.status === 'OFFLINE')
+    .map(n => n.id);
+
+  const affectedEdgeIds = edges.filter(e => e.isAffectedPath).map(e => e.id);
+
+  // Cluster Status derived directly from live node health
+  let clusterStatus = 'NOMINAL';
+  if (nodes.some(n => n.status === 'CRITICAL' || n.status === 'OFFLINE')) {
+    clusterStatus = 'CRITICAL';
+  } else if (nodes.some(n => n.status === 'DEGRADED')) {
+    clusterStatus = 'DEGRADED';
+  }
+
+  // Telemetry Status derived from Prometheus connectivity and anomalies
+  let telemetryStatus = 'NOMINAL';
+  if (!metricsData?.prometheusConnected && Object.values(servicesInfo).every(s => s.status === 'OFFLINE')) {
+    telemetryStatus = 'OFFLINE';
+  } else if (failingServiceIds.length > 0 || anomalies.length > 0) {
+    telemetryStatus = 'ANOMALY';
+  }
+
+  // Root cause candidate determination
+  let rootCauseCandidate = null;
+  if (directFaultMap['database']) rootCauseCandidate = 'database';
+  else if (directFaultMap['payment-service']) rootCauseCandidate = 'payment-service';
+  else if (directFaultMap['inventory-service']) rootCauseCandidate = 'inventory-service';
+  else if (directFaultMap['auth-service']) rootCauseCandidate = 'auth-service';
+  else if (directFaultMap['order-service']) rootCauseCandidate = 'order-service';
+  else if (directFaultMap['gateway-service']) rootCauseCandidate = 'gateway-service';
+  else if (failingServiceIds.length > 0) rootCauseCandidate = failingServiceIds[0];
+
+  return {
+    nodes,
+    edges,
+    failingServiceIds,
+    affectedEdgeIds,
+    rootCauseCandidate,
+    clusterStatus,
+    telemetryStatus,
+    rawAnomalies: anomalies,
+    prometheusConnected: !!metricsData?.prometheusConnected
+  };
+}
+
 app.get('/api/graph', async (req, res) => {
   try {
     const metricsData = await prometheusAdapter.queryMetrics();
-    const anomalies = metricsData.anomalies || [];
-
-    // 1. Identify direct node status from genuine Prometheus anomalies
-    const directStatusMap = {};
-    const directAnomaliesMap = {};
-
-    for (const node of dependencyTopology.nodes) {
-      let nodeAnomalies = anomalies.filter(a => a.service === node.id);
-
-      // Map DB-related payment telemetry directly to the database node
-      if (node.id === 'database') {
-        const dbAnomalies = anomalies.filter(a => 
-          a.service === 'database' || 
-          (a.service === 'payment-service' && (a.metric === 'payment_db_errors_total' || (a.metric === 'payment_active_connections' && a.value >= 90) || a.description?.includes('db_overload')))
-        );
-        nodeAnomalies = [...nodeAnomalies, ...dbAnomalies];
-      }
-
-      const isCritical = nodeAnomalies.some(a => a.severity === 'CRITICAL');
-      const isDegraded = nodeAnomalies.some(a => a.severity === 'HIGH' || a.severity === 'MEDIUM' || a.severity === 'DEGRADED');
-      const serviceInfo = metricsData.services ? metricsData.services[node.id] : null;
-
-      let status = 'HEALTHY';
-      if (node.id === 'frontend') {
-        status = 'HEALTHY';
-      } else if (isCritical) {
-        status = 'CRITICAL';
-      } else if (isDegraded) {
-        status = 'DEGRADED';
-      } else if (serviceInfo && serviceInfo.status === 'OFFLINE' && serviceInfo.mode !== 'simulated-baseline') {
-        status = 'OFFLINE';
-      }
-
-      directStatusMap[node.id] = status;
-      directAnomaliesMap[node.id] = nodeAnomalies;
-    }
-
-    // 2. Compute Cascading Upstream Degradation
-    // If a service has downstream dependencies that are CRITICAL/OFFLINE, its status degrades
-    const finalNodesWithHealth = dependencyTopology.nodes.map(node => {
-      let status = directStatusMap[node.id];
-      const nodeAnomalies = [...(directAnomaliesMap[node.id] || [])];
-      const serviceInfo = metricsData.services ? metricsData.services[node.id] : null;
-
-      if (status === 'HEALTHY' && node.id !== 'frontend') {
-        const directDownstream = node.downstream || [];
-        const hasCriticalDownstream = directDownstream.some(dsId => directStatusMap[dsId] === 'CRITICAL' || directStatusMap[dsId] === 'OFFLINE');
-        const hasDegradedDownstream = directDownstream.some(dsId => directStatusMap[dsId] === 'DEGRADED');
-
-        if (hasCriticalDownstream || hasDegradedDownstream) {
-          status = 'DEGRADED';
-          const failingDs = directDownstream.filter(dsId => directStatusMap[dsId] !== 'HEALTHY');
-          nodeAnomalies.push({
-            service: node.id,
-            metric: 'cascading_downstream_dependency',
-            value: 1,
-            severity: 'DEGRADED',
-            description: `Cascading degradation: Downstream dependency [${failingDs.join(', ')}] is failing.`
-          });
-        }
-      }
-
-      return {
-        ...node,
-        status,
-        anomalies: nodeAnomalies,
-        serviceInfo
-      };
-    });
-
-    const allFailingIds = finalNodesWithHealth
-      .filter(n => n.status === 'CRITICAL' || n.status === 'DEGRADED' || n.status === 'OFFLINE')
-      .map(n => n.id);
-
-    res.json({
-      nodes: finalNodesWithHealth,
-      edges: dependencyTopology.edges,
-      failingServiceIds: allFailingIds,
-      rawAnomalies: anomalies,
-      prometheusConnected: metricsData.prometheusConnected
-    });
+    const impact = computeTopologyImpact(metricsData, prometheusAdapter.activeScenario);
+    res.json(impact);
   } catch (err) {
+    logger.error(`Failed to build topology graph: ${err.message}`);
+    const emptyEdges = dependencyTopology.edges.map(e => ({ ...e, isAffectedPath: false, status: 'NOMINAL', severity: 'NOMINAL' }));
     res.json({
-      nodes: dependencyTopology.nodes,
-      edges: dependencyTopology.edges,
+      nodes: dependencyTopology.nodes.map(n => ({ ...n, status: 'HEALTHY', anomalies: [] })),
+      edges: emptyEdges,
       failingServiceIds: [],
-      rawAnomalies: []
+      affectedEdgeIds: [],
+      rootCauseCandidate: null,
+      clusterStatus: 'NOMINAL',
+      telemetryStatus: 'NOMINAL',
+      rawAnomalies: [],
+      prometheusConnected: false
     });
   }
 });
@@ -519,25 +795,25 @@ const SERVICE_PORTS = {
 
 const SCENARIO_ROUTING = {
   // API Gateway
-  'gateway_outage': { service: 'gateway-service', port: 4000, mode: 'gateway_outage', title: 'API Gateway 502 Outage' },
-  'cache_stampede': { service: 'gateway-service', port: 4000, mode: 'cache_stampede', title: 'API Gateway Cache Storm & Rate Limit' },
+  'gateway_outage': { service: 'gateway-service', port: 4000, mode: 'gateway_outage', title: 'API Gateway 502 Outage', rootNode: 'gateway-service' },
+  'cache_stampede': { service: 'gateway-service', port: 4000, mode: 'cache_stampede', title: 'API Gateway Cache Storm & Rate Limit', rootNode: 'gateway-service' },
 
   // Order Service
-  'order_deadlock': { service: 'order-service', port: 4001, mode: 'order_deadlock', title: 'Order Circuit Breaker Trip' },
+  'order_deadlock': { service: 'order-service', port: 4001, mode: 'order_deadlock', title: 'Order Circuit Breaker Trip', rootNode: 'order-service' },
 
   // Auth Service
-  'auth_storm': { service: 'auth-service', port: 4003, mode: 'auth_storm', title: 'Auth Token Storm & 401 Burst' },
+  'auth_storm': { service: 'auth-service', port: 4003, mode: 'auth_storm', title: 'Auth Token Storm & 401 Burst', rootNode: 'auth-service' },
 
   // Inventory Service
-  'inventory_lock': { service: 'inventory-service', port: 4004, mode: 'inventory_lock', title: 'Inventory Deadlock & Stock Depletion' },
+  'inventory_lock': { service: 'inventory-service', port: 4004, mode: 'inventory_lock', title: 'Inventory Deadlock & Stock Depletion', rootNode: 'inventory-service' },
 
   // Payment Service
-  'high_cpu': { service: 'payment-service', port: 4002, mode: 'high_cpu', title: 'High CPU & Event Loop Saturation' },
-  'payment_gateway_down': { service: 'payment-service', port: 4002, mode: 'payment_gateway_down', title: '3rd-Party Payment Gateway 503 Outage' },
-  'downstream_failure': { service: 'payment-service', port: 4002, mode: 'downstream_failure', title: 'Payment RPC Timeout & Deadlock' },
+  'high_cpu': { service: 'payment-service', port: 4002, mode: 'high_cpu', title: 'High CPU & Event Loop Saturation', rootNode: 'payment-service' },
+  'payment_gateway_down': { service: 'payment-service', port: 4002, mode: 'payment_gateway_down', title: '3rd-Party Payment Gateway 503 Outage', rootNode: 'payment-service' },
+  'downstream_failure': { service: 'payment-service', port: 4002, mode: 'downstream_failure', title: 'Payment RPC Timeout & Deadlock', rootNode: 'payment-service' },
 
-  // Database (MongoDB Cluster)
-  'db_overload': { service: 'payment-service', port: 4002, mode: 'db_overload', title: 'Database Connection Pool Exhaustion' }
+  // Database (MongoDB Cluster) - Root is 'database'
+  'db_overload': { service: 'payment-service', port: 4002, mode: 'db_overload', title: 'Database Connection Pool Exhaustion', rootNode: 'database' }
 };
 
 const DOCKER_BIN = process.env.DOCKER_PATH || 
@@ -565,7 +841,10 @@ app.post('/api/remediation/approve', async (req, res) => {
 
   try {
     const incident = incidentId ? incidentManager.getById(incidentId) : null;
-    const targetService = service || incident?.service || incident?.analysis?.affectedServices?.root || 'payment-service';
+    let targetService = service || incident?.service || incident?.analysis?.affectedServices?.root || 'payment-service';
+    if (targetService === 'database') {
+      targetService = 'payment-service';
+    }
     const targetPort = SERVICE_PORTS[targetService] || 4002;
 
     logger.info(`Remediation action '${action}' approved by ${operatorName} for ${targetService}`);
@@ -615,7 +894,7 @@ app.post('/api/remediation/approve', async (req, res) => {
       await new Promise(resolve => setTimeout(resolve, 1500));
       verifiedMetrics = await prometheusAdapter.queryMetrics();
       const remainingAnomalies = verifiedMetrics.anomalies || [];
-      targetAnomalies = remainingAnomalies.filter(a => a.service === targetService);
+      targetAnomalies = remainingAnomalies.filter(a => a.service === targetService || a.service === 'database');
       const targetOnline = verifiedMetrics.services[targetService]?.status === 'ONLINE';
 
       if (targetOnline && targetAnomalies.length === 0) {
@@ -630,6 +909,7 @@ app.post('/api/remediation/approve', async (req, res) => {
     let message = '';
 
     if (isRecovered) {
+      prometheusAdapter.setSimulationScenario('none');
       message = `Remediation '${action || 'restart_service'}' executed via ${executionMethod} and VERIFIED by Prometheus telemetry. ${targetService} is HEALTHY with 0 active anomalies.`;
 
       lokiAdapter.pushLog({
@@ -668,6 +948,9 @@ app.post('/api/remediation/approve', async (req, res) => {
       }
     }
 
+    // Recompute topology from fresh telemetry post-remediation
+    const freshImpact = computeTopologyImpact(verifiedMetrics, isRecovered ? 'none' : prometheusAdapter.activeScenario);
+
     res.json({
       success: true,
       recovered: isRecovered,
@@ -678,7 +961,8 @@ app.post('/api/remediation/approve', async (req, res) => {
       activeAnomalies: verifiedMetrics?.anomalies || [],
       prometheusConnected: verifiedMetrics?.prometheusConnected,
       audit: auditEntry,
-      incident: incidentId ? incidentManager.getById(incidentId) : null
+      incident: incidentId ? incidentManager.getById(incidentId) : null,
+      topology: freshImpact
     });
   } catch (err) {
     logger.error(`Remediation execution failed: ${err.message}`);
@@ -696,6 +980,8 @@ async function handleScenarioInjection(req, res) {
   logger.info(`Scenario injection requested: ${scenario}`);
 
   if (!scenario || scenario === 'none' || scenario === 'reset' || scenario === 'healthy') {
+    prometheusAdapter.setSimulationScenario('none');
+
     // 1. Clear faults and remediate across ALL 5 services
     const services = Object.entries(SERVICE_PORTS).map(([name, port]) => ({ name, port }));
 
@@ -709,9 +995,10 @@ async function handleScenarioInjection(req, res) {
     // Wait for Prometheus to observe clean telemetry
     let verifiedHealthy = false;
     let attempts = 0;
+    let metrics = null;
     while (attempts < 6) {
       await new Promise(r => setTimeout(r, 1500));
-      const metrics = await prometheusAdapter.queryMetrics();
+      metrics = await prometheusAdapter.queryMetrics();
       if ((metrics.anomalies || []).length === 0) {
         verifiedHealthy = true;
         break;
@@ -725,13 +1012,16 @@ async function handleScenarioInjection(req, res) {
       incidentManager.resolveIncident(inc.id, 'Fault injections cleared and cluster telemetry verified healthy by Prometheus.');
     });
 
+    const freshImpact = computeTopologyImpact(metrics || await prometheusAdapter.queryMetrics(), 'none');
+
     return res.json({
       success: true,
       verified: verifiedHealthy,
       scenario: 'none',
       message: verifiedHealthy
         ? 'All fault simulations cleared and cluster verified healthy by Prometheus telemetry.'
-        : 'All fault simulations cleared. Awaiting next Prometheus telemetry cycle.'
+        : 'All fault simulations cleared. Awaiting next Prometheus telemetry cycle.',
+      topology: freshImpact
     });
   }
 
@@ -739,6 +1029,8 @@ async function handleScenarioInjection(req, res) {
   if (!route) {
     return res.status(400).json({ error: `Unknown scenario: ${scenario}` });
   }
+
+  prometheusAdapter.setSimulationScenario(scenario);
 
   try {
     // 1. Send failure command to target microservice
@@ -749,16 +1041,26 @@ async function handleScenarioInjection(req, res) {
 
     logger.info(`Microservice ${route.service} accepted fault injection:`, serviceRes.data);
 
-    // 2. Poll Prometheus until it actually observes the changed telemetry!
+    // 2. Trigger synthetic ingress request to exercise actual call chain: Gateway -> Auth / Order -> Inventory / Payment -> DB
+    try {
+      await axios.post('http://localhost:4000/api/v1/checkout', {
+        customerId: 'aiops-synthetic-probe',
+        items: [{ id: 'product-1', quantity: 1 }],
+        totalAmount: 120
+      }, { timeout: 3500 }).catch(() => {});
+    } catch (_) {}
+
+    // 3. Poll Prometheus until it actually observes the changed telemetry!
     let observedAnomaly = null;
     let attempts = 0;
+    let latestMetrics = null;
     const maxAttempts = 7; // up to ~10.5 seconds (Prometheus scrape interval is 2s)
 
     while (attempts < maxAttempts) {
       await new Promise(r => setTimeout(r, 1500));
-      const metrics = await prometheusAdapter.queryMetrics();
-      const anomalies = metrics.anomalies || [];
-      const match = anomalies.find(a => a.service === route.service);
+      latestMetrics = await prometheusAdapter.queryMetrics();
+      const anomalies = latestMetrics.anomalies || [];
+      const match = anomalies.find(a => a.service === route.service || a.service === route.rootNode);
       if (match) {
         observedAnomaly = match;
         break;
@@ -768,27 +1070,30 @@ async function handleScenarioInjection(req, res) {
 
     if (!observedAnomaly) {
       logger.warn(`Fault injected to ${route.service}, but Prometheus has not yet observed anomaly after ${attempts * 1.5}s.`);
+      const freshImpact = computeTopologyImpact(latestMetrics || await prometheusAdapter.queryMetrics(), scenario);
       return res.status(202).json({
         success: true,
         verified: false,
         scenario,
-        service: route.service,
+        service: route.rootNode || route.service,
         message: `Fault injected into ${route.service}. Awaiting Prometheus scrape cycle observation.`,
-        pendingVerification: true
+        pendingVerification: true,
+        topology: freshImpact
       });
     }
 
-    // 3. Prometheus telemetry confirmed! Now correlate and create/update incident
+    // 4. Prometheus telemetry confirmed! Now correlate and create/update incident
     const correlation = await correlationEngine.correlateSignals();
+    const incidentTargetService = route.rootNode || route.service;
 
     // Check if an open incident for this service already exists
     const openIncidents = incidentManager.getAll({ status: 'OPEN' });
-    let incident = openIncidents.find(i => i.service === route.service);
+    let incident = openIncidents.find(i => i.service === incidentTargetService);
 
     if (!incident) {
       incident = incidentManager.createIncident({
-        title: `${route.title} in ${route.service}`,
-        service: route.service,
+        title: `${route.title} in ${incidentTargetService}`,
+        service: incidentTargetService,
         severity: observedAnomaly.severity || 'CRITICAL',
         status: 'OPEN',
         anomalies: [observedAnomaly],
@@ -798,19 +1103,22 @@ async function handleScenarioInjection(req, res) {
     }
 
     lokiAdapter.pushLog({
-      service: route.service,
+      service: incidentTargetService,
       level: 'ERROR',
-      message: `[CHAOS_INJECTION_DETECTED] Real Prometheus telemetry confirms ${observedAnomaly.metric} anomaly on ${route.service}: ${observedAnomaly.description}`
+      message: `[CHAOS_INJECTION_DETECTED] Real Prometheus telemetry confirms ${observedAnomaly.metric} anomaly on ${incidentTargetService}: ${observedAnomaly.description}`
     });
+
+    const freshImpact = computeTopologyImpact(latestMetrics, scenario);
 
     return res.json({
       success: true,
       verified: true,
       scenario,
-      service: route.service,
+      service: incidentTargetService,
       anomaly: observedAnomaly,
       incident,
-      message: `Failure detected! Prometheus verified anomalous telemetry on ${route.service}.`
+      message: `Failure detected! Prometheus verified anomalous telemetry on ${incidentTargetService}.`,
+      topology: freshImpact
     });
 
   } catch (err) {

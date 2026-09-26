@@ -81,19 +81,16 @@ class CorrelationEngine {
     timeline.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
     // 5. Causal Analysis via Dependency Graph
-    // Deepest service in the call chain exhibiting failure is likely the root origin.
-    // Order of dependency depth: database / external gateway > cache-redis > domain services > gateway > frontend
+    // Deepest service in the call chain exhibiting failure is the root origin.
+    // Client (0) -> Gateway (1) -> [Auth (3), Order (2)] -> [Inventory (3), Payment (4)] -> MongoDB (5)
     const dependencyDepth = {
-      'payment-gateway': 6,
-      'database': 6,
-      'cache-redis': 5,
+      'database': 5,
       'payment-service': 4,
-      'inventory-service': 4,
-      'notification-service': 4,
+      'inventory-service': 3,
       'auth-service': 3,
-      'order-service': 3,
-      'gateway-service': 2,
-      'frontend': 1
+      'order-service': 2,
+      'gateway-service': 1,
+      'frontend': 0
     };
 
     let rootCauseCandidate = affectedServiceNames[0];
