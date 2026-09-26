@@ -367,5 +367,5 @@ Yes! Navigate to the <b>Runbooks</b> view in the UI and click <b>New Runbook</b>
 ## 🎓 Academic Information
 - **Project**: College Final Year Engineering Capstone Project
 - **Domain**: Cloud Computing, Site Reliability Engineering (SRE), Artificial Intelligence for IT Operations (AIOps)
-- **Author**: Mayur Zope
+- **Author**: Mayur Zope , Prem Borde , Yash Chaudhary
 - **License**: [MIT](LICENSE)
