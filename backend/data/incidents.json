@@ -1,13 +1,13 @@
 [
   {
-    "id": "INC-8264",
+    "id": "INC-8181",
     "title": "API Gateway 502 Outage in gateway-service",
     "description": "Automated detection from real Prometheus metrics: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.",
     "service": "gateway-service",
     "severity": "CRITICAL",
     "status": "OPEN",
     "trigger": "MANUAL",
-    "createdAt": "2026-09-26T06:56:29.788Z",
+    "createdAt": "2026-09-26T07:45:29.949Z",
     "resolvedAt": null,
     "resolutionDurationSeconds": null,
     "resolutionNotes": "",
@@ -24,6 +24,420 @@
       }
     ],
     "remediationAudit": null
+  },
+  {
+    "id": "INC-6197",
+    "title": "Database Connection Pool Exhaustion in payment-service",
+    "description": "Automated detection from real Prometheus metrics: Connection pool exhausted: 98/100 sockets utilized.",
+    "service": "payment-service",
+    "severity": "CRITICAL",
+    "status": "RESOLVED",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-26T07:15:44.099Z",
+    "resolvedAt": "2026-09-26T07:16:10.242Z",
+    "resolutionDurationSeconds": 26,
+    "resolutionNotes": "Remediation 'restart_connection_pool' executed via payment-service API hook (/api/remediate) and VERIFIED by Prometheus telemetry. payment-service is HEALTHY with 0 active anomalies.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in payment-service. Telemetry shows: Connection pool exhausted: 98/100 sockets utilized..",
+      "severity": "CRITICAL",
+      "probableRootCause": "Service payment-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Connection pool exhausted: 98/100 sockets utilized..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified payment-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [],
+        "impact": "Direct service degradation on payment-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Prometheus Metric] payment-service: payment_active_connections = 98 (Connection pool exhausted: 98/100 sockets utilized.)",
+        "[Prometheus Metric] payment-service: payment_failure_mode = 1 (Payment service fault injection active {instance=\"payment-service:4002\", mode=\"db_overload\"}. Matching operational SOP.)",
+        "[Loki Log] payment-service: \"[CHAOS_INJECTION_DETECTED] Real Prometheus telemetry confirms payment_active_connections anomaly on payment-service: Connection pool exhausted: 98/100 sockets utilized.\""
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Database Connection Pool Exhaustion",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-01): ## Immediate Remediation Steps (SOP-01)\r\n1. **Drain & Reset Connection Pool**: Flush zombie sockets on `payment-service` by triggering the pool reset hook:\r\n   - Command: `POST /ap..."
+      },
+      "timeline": [
+        {
+          "time": "12:45:44 pm",
+          "service": "payment-service",
+          "event": "[CHAOS_INJECTION_DETECTED] Real Prometheus telemetry confirms payment_active_connections anomaly on payment-service: Connection pool exhausted: 98/100 sockets utilized.",
+          "type": "origin"
+        },
+        {
+          "time": "12:46:04 pm",
+          "service": "payment-service",
+          "event": "Connection pool exhausted: 98/100 sockets utilized.",
+          "type": "origin"
+        },
+        {
+          "time": "12:46:04 pm",
+          "service": "payment-service",
+          "event": "Payment service fault injection active {instance=\"payment-service:4002\", mode=\"db_overload\"}. Matching operational SOP.",
+          "type": "origin"
+        }
+      ],
+      "remediation": {
+        "title": "Drain & Reset Payment Connection Pool (SOP-01)",
+        "description": "Flush exhausted sockets on payment-service, drain connection pool, and restore baseline headroom.",
+        "command": "POST /api/remediate { service: \"payment-service\", action: \"restart_connection_pool\" }",
+        "actionType": "restart_connection_pool",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "anomalies": [
+      {
+        "service": "payment-service",
+        "metric": "payment_active_connections",
+        "value": 98,
+        "threshold": 90,
+        "severity": "CRITICAL",
+        "description": "Connection pool exhausted: 98/100 sockets utilized."
+      },
+      {
+        "service": "payment-service",
+        "metric": "payment_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Payment service fault injection active {instance=\"payment-service:4002\", mode=\"db_overload\"}. Matching operational SOP."
+      }
+    ],
+    "remediationAudit": {
+      "incidentId": "INC-6197",
+      "action": "restart_connection_pool",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "verified": true,
+      "timestamp": "2026-09-26T07:16:10.250Z"
+    }
+  },
+  {
+    "id": "INC-1784",
+    "title": "Inventory Deadlock & Stock Depletion in inventory-service",
+    "description": "Automated detection from real Prometheus metrics: Inventory service fault injection active {instance=\"inventory-service:4004\", mode=\"inventory_lock\"}. Matching operational SOP.",
+    "service": "inventory-service",
+    "severity": "CRITICAL",
+    "status": "RESOLVED",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-26T07:13:51.426Z",
+    "resolvedAt": "2026-09-26T07:14:33.550Z",
+    "resolutionDurationSeconds": 42,
+    "resolutionNotes": "Remediation 'restart_service' executed via Docker container restart and VERIFIED by Prometheus telemetry. inventory-service is HEALTHY with 0 active anomalies.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in inventory-service. Telemetry shows: Inventory service fault injection active {instance=\"inventory-service:4004\", mode=\"inventory_lock\"}. Matching operational SOP..",
+      "severity": "CRITICAL",
+      "probableRootCause": "Service inventory-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Inventory service fault injection active {instance=\"inventory-service:4004\", mode=\"inventory_lock\"}. Matching operational SOP..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified inventory-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "inventory-service",
+        "cascading": [],
+        "impact": "Direct service degradation on inventory-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Prometheus Metric] inventory-service: inventory_failure_mode = 1 (Inventory service fault injection active {instance=\"inventory-service:4004\", mode=\"inventory_lock\"}. Matching operational SOP.)",
+        "[Prometheus Metric] inventory-service: inventory_failures_total = 10 (Inventory reservation/stock failures: 10 operations rejected.)",
+        "[Prometheus Metric] inventory-service: inventory_available_quantity = 0 (Inventory stock depleted: SKU quantity is 0 {instance=\"inventory-service:4004\", product_id=\"product-1\"}.)",
+        "[Prometheus Metric] inventory-service: inventory_available_quantity = 0 (Inventory stock depleted: SKU quantity is 0 {instance=\"inventory-service:4004\", product_id=\"product-2\"}.)",
+        "[Prometheus Metric] inventory-service: inventory_available_quantity = 0 (Inventory stock depleted: SKU quantity is 0 {instance=\"inventory-service:4004\", product_id=\"product-3\"}.)",
+        "[Loki Log] inventory-service: \"[CHAOS_INJECTION_DETECTED] Real Prometheus telemetry confirms inventory_failure_mode anomaly on inventory-service: Inventory service fault injection active {instance=\"inventory-service:4004\", mode=\"inventory_lock\"}. Matching operational SOP.\""
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Distributed Inventory Lock Deadlock",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-06): ## Immediate Remediation Steps (SOP-06)\n1. **Kill Hanging Lock Queries & Reset Allocation Queue**:\n   - Terminate active deadlocked database queries and reset inventory reservation..."
+      },
+      "timeline": [
+        {
+          "time": "12:43:51 pm",
+          "service": "inventory-service",
+          "event": "[CHAOS_INJECTION_DETECTED] Real Prometheus telemetry confirms inventory_failure_mode anomaly on inventory-service: Inventory service fault injection active {instance=\"inventory-service:4004\", mode=\"inventory_lock\"}. Matching operational SOP.",
+          "type": "origin"
+        },
+        {
+          "time": "12:44:00 pm",
+          "service": "inventory-service",
+          "event": "Inventory service fault injection active {instance=\"inventory-service:4004\", mode=\"inventory_lock\"}. Matching operational SOP.",
+          "type": "origin"
+        },
+        {
+          "time": "12:44:00 pm",
+          "service": "inventory-service",
+          "event": "Inventory reservation/stock failures: 10 operations rejected.",
+          "type": "origin"
+        },
+        {
+          "time": "12:44:00 pm",
+          "service": "inventory-service",
+          "event": "Inventory stock depleted: SKU quantity is 0 {instance=\"inventory-service:4004\", product_id=\"product-1\"}.",
+          "type": "origin"
+        },
+        {
+          "time": "12:44:00 pm",
+          "service": "inventory-service",
+          "event": "Inventory stock depleted: SKU quantity is 0 {instance=\"inventory-service:4004\", product_id=\"product-2\"}.",
+          "type": "origin"
+        },
+        {
+          "time": "12:44:00 pm",
+          "service": "inventory-service",
+          "event": "Inventory stock depleted: SKU quantity is 0 {instance=\"inventory-service:4004\", product_id=\"product-3\"}.",
+          "type": "origin"
+        }
+      ],
+      "remediation": {
+        "title": "Restart and Healthcheck inventory-service",
+        "description": "Restart service container and verify health probes against Prometheus.",
+        "command": "POST /api/remediate { service: \"inventory-service\", action: \"restart_service\" }",
+        "actionType": "restart_service",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "anomalies": [
+      {
+        "service": "inventory-service",
+        "metric": "inventory_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Inventory service fault injection active {instance=\"inventory-service:4004\", mode=\"inventory_lock\"}. Matching operational SOP."
+      },
+      {
+        "service": "inventory-service",
+        "metric": "inventory_failures_total",
+        "value": 10,
+        "threshold": 0,
+        "severity": "HIGH",
+        "description": "Inventory reservation/stock failures: 10 operations rejected."
+      },
+      {
+        "service": "inventory-service",
+        "metric": "inventory_available_quantity",
+        "value": 0,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Inventory stock depleted: SKU quantity is 0 {instance=\"inventory-service:4004\", product_id=\"product-1\"}."
+      },
+      {
+        "service": "inventory-service",
+        "metric": "inventory_available_quantity",
+        "value": 0,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Inventory stock depleted: SKU quantity is 0 {instance=\"inventory-service:4004\", product_id=\"product-2\"}."
+      },
+      {
+        "service": "inventory-service",
+        "metric": "inventory_available_quantity",
+        "value": 0,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Inventory stock depleted: SKU quantity is 0 {instance=\"inventory-service:4004\", product_id=\"product-3\"}."
+      }
+    ],
+    "remediationAudit": {
+      "incidentId": "INC-1784",
+      "action": "restart_service",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "verified": true,
+      "timestamp": "2026-09-26T07:14:33.553Z"
+    }
+  },
+  {
+    "id": "INC-6228",
+    "title": "Service gateway-service is the deepest dependency exhibiting failure in the...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "gateway-service",
+    "severity": "P1-Critical",
+    "status": "RESOLVED",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-26T07:13:34.359Z",
+    "resolvedAt": "2026-09-26T07:15:04.194Z",
+    "resolutionDurationSeconds": 90,
+    "resolutionNotes": "Remediation 'flush_cache' executed via gateway-service API hook (/api/remediate) and VERIFIED by Prometheus telemetry. gateway-service is HEALTHY with 0 active anomalies.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in gateway-service. Telemetry shows: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP..",
+      "severity": "P1-Critical",
+      "probableRootCause": "Service gateway-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified gateway-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "gateway-service",
+        "cascading": [],
+        "impact": "Direct service degradation on gateway-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Prometheus Metric] gateway-service: gateway_failure_mode = 1 (API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.)",
+        "[Prometheus Metric] gateway-service: gateway_checkout_errors_total = 10 (Gateway customer checkout errors: 10 5xx errors propagated.)"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Auth Token Verification Storm & CPU Throttling",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-08): ## Immediate Remediation Steps (SOP-08)\n1. **Enable Token Rate-Limiting & Flush Ingress Throttler**:\n   - Throttle client IP token renewal requests at API Gateway and enable short-..."
+      },
+      "timeline": [
+        {
+          "time": "12:44:55 pm",
+          "service": "gateway-service",
+          "event": "API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.",
+          "type": "origin"
+        },
+        {
+          "time": "12:44:55 pm",
+          "service": "gateway-service",
+          "event": "Gateway customer checkout errors: 10 5xx errors propagated.",
+          "type": "origin"
+        }
+      ],
+      "remediation": {
+        "title": "Flush Ingress Cache & Reset API Gateway (SOP-03)",
+        "description": "Flush route caches, reset upstream error counters, and restore healthy proxy pass on API Gateway.",
+        "command": "POST /api/remediate { service: \"gateway-service\", action: \"flush_cache\" }",
+        "actionType": "flush_cache",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "anomalies": [
+      {
+        "service": "gateway-service",
+        "metric": "gateway_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP."
+      },
+      {
+        "service": "gateway-service",
+        "metric": "gateway_checkout_errors_total",
+        "value": 10,
+        "threshold": 0,
+        "severity": "HIGH",
+        "description": "Gateway customer checkout errors: 10 5xx errors propagated."
+      }
+    ],
+    "remediationAudit": {
+      "incidentId": "INC-6228",
+      "action": "flush_cache",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "verified": true,
+      "timestamp": "2026-09-26T07:13:37.917Z"
+    }
+  },
+  {
+    "id": "INC-8264",
+    "title": "API Gateway 502 Outage in gateway-service",
+    "description": "Automated detection from real Prometheus metrics: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.",
+    "service": "gateway-service",
+    "severity": "CRITICAL",
+    "status": "RESOLVED",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-26T06:56:29.788Z",
+    "resolvedAt": "2026-09-26T07:16:51.672Z",
+    "resolutionDurationSeconds": 1222,
+    "resolutionNotes": "Remediation 'flush_cache' executed via gateway-service API hook (/api/remediate) and VERIFIED by Prometheus telemetry. gateway-service is HEALTHY with 0 active anomalies.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in gateway-service. Telemetry shows: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP..",
+      "severity": "CRITICAL",
+      "probableRootCause": "Service gateway-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified gateway-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "gateway-service",
+        "cascading": [],
+        "impact": "Direct service degradation on gateway-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Prometheus Metric] gateway-service: gateway_failure_mode = 1 (API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.)",
+        "[Prometheus Metric] gateway-service: gateway_checkout_errors_total = 10 (Gateway customer checkout errors: 10 5xx errors propagated.)",
+        "[Loki Log] gateway-service: \"[CHAOS_INJECTION_DETECTED] Real Prometheus telemetry confirms gateway_failure_mode anomaly on gateway-service: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.\""
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Auth Token Verification Storm & CPU Throttling",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-08): ## Immediate Remediation Steps (SOP-08)\n1. **Enable Token Rate-Limiting & Flush Ingress Throttler**:\n   - Throttle client IP token renewal requests at API Gateway and enable short-..."
+      },
+      "timeline": [
+        {
+          "time": "12:46:36 pm",
+          "service": "gateway-service",
+          "event": "[CHAOS_INJECTION_DETECTED] Real Prometheus telemetry confirms gateway_failure_mode anomaly on gateway-service: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.",
+          "type": "origin"
+        },
+        {
+          "time": "12:46:46 pm",
+          "service": "gateway-service",
+          "event": "API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.",
+          "type": "origin"
+        },
+        {
+          "time": "12:46:46 pm",
+          "service": "gateway-service",
+          "event": "Gateway customer checkout errors: 10 5xx errors propagated.",
+          "type": "origin"
+        }
+      ],
+      "remediation": {
+        "title": "Flush Ingress Cache & Reset API Gateway (SOP-03)",
+        "description": "Flush route caches, reset upstream error counters, and restore healthy proxy pass on API Gateway.",
+        "command": "POST /api/remediate { service: \"gateway-service\", action: \"flush_cache\" }",
+        "actionType": "flush_cache",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "anomalies": [
+      {
+        "service": "gateway-service",
+        "metric": "gateway_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP."
+      },
+      {
+        "service": "gateway-service",
+        "metric": "gateway_checkout_errors_total",
+        "value": 10,
+        "threshold": 0,
+        "severity": "HIGH",
+        "description": "Gateway customer checkout errors: 10 5xx errors propagated."
+      }
+    ],
+    "remediationAudit": {
+      "incidentId": "INC-8264",
+      "action": "flush_cache",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "verified": true,
+      "timestamp": "2026-09-26T07:16:51.682Z"
+    }
   },
   {
     "id": "INC-9290",
@@ -655,7 +1069,7 @@
     "resolvedAt": "2026-09-23T19:15:00.824Z",
     "resolutionDurationSeconds": 7,
     "resolutionNotes": "Remediation action 'restart' approved by DevOps SRE Lead and executed successfully.",
-    "notes": [], 
+    "notes": [],
     "analysis": {
       "incidentSummary": "Service impairment detected originating in payment-service. Telemetry shows: Payment service worker process unresponsive / thread pool deadlock..",
       "severity": "P1-Critical",

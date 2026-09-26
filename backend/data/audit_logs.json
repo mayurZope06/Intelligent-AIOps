@@ -1,5 +1,37 @@
 [
   {
+    "incidentId": "INC-8264",
+    "action": "flush_cache",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "verified": true,
+    "timestamp": "2026-09-26T07:16:51.682Z"
+  },
+  {
+    "incidentId": "INC-6197",
+    "action": "restart_connection_pool",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "verified": true,
+    "timestamp": "2026-09-26T07:16:10.250Z"
+  },
+  {
+    "incidentId": "INC-1784",
+    "action": "restart_service",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "verified": true,
+    "timestamp": "2026-09-26T07:14:33.553Z"
+  },
+  {
+    "incidentId": "INC-6228",
+    "action": "flush_cache",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "verified": true,
+    "timestamp": "2026-09-26T07:13:37.917Z"
+  },
+  {
     "incidentId": "INC-4130",
     "action": "replenish_stock",
     "approvedBy": "DevOps Lead",
@@ -87,14 +119,14 @@
     "approvedBy": "DevOps SRE Lead",
     "result": "REMEDIATED_AND_RECOVERED",
     "timestamp": "2026-09-23T19:17:30.624Z"
-  },  
+  },
   {
     "incidentId": "INC-9200",
     "action": "restart",
     "approvedBy": "DevOps SRE Lead",
     "result": "REMEDIATED_AND_RECOVERED",
     "timestamp": "2026-09-23T19:15:00.805Z"
-  }, 
+  },
   {
     "incidentId": "INC-1824",
     "action": "restart",
