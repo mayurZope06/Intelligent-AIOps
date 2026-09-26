@@ -5,7 +5,7 @@ const logger = require('../utils/logger')('AIReasoning');
 class AIReasoningEngine {
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY || '';
-    this.modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    this.modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
   }
 
   setApiKey(key) {
@@ -40,15 +40,6 @@ class AIReasoningEngine {
       try {
         logger.info(`Dispatching diagnostic inference to Gemini API (model: ${this.modelName})...`);
         const genAI = new GoogleGenerativeAI(this.apiKey);
-        const model = genAI.getGenerativeModel({ 
-          model: this.modelName,
-          generationConfig: {
-            temperature: 0.2,
-            topP: 0.8,
-            maxOutputTokens: 4096,
-            responseMimeType: 'application/json'
-          }
-        });
 
         const prompt = `
 You are the Intelligent AIOps Engine, an expert incident diagnostic system for microservice architectures.
@@ -106,15 +97,66 @@ Synthesize these real observations and return ONLY a valid JSON object matching 
     "requiresHumanApproval": true
   }
 }
-Output raw JSON only. Do not wrap in markdown tags.
+
+CRITICAL JSON FORMATTING RULES:
+1. Return ONLY a single, valid JSON object matching the schema above.
+2. Use single quotes for any names, metrics, or values inside strings (e.g. 'metric_name' or 'status'). NEVER use unescaped double quotes inside strings.
+3. Do not include raw unescaped newlines inside strings; keep strings on a single line or use \\n.
+4. Output raw JSON only. Do not wrap in markdown tags.
 `;
 
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
-        const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-        rcaReport = JSON.parse(cleanJson);
-        rcaReport.provider = 'Google Gemini LLM';
-        rcaReport.model = this.modelName;
+        const executeInference = async (modelName = this.modelName, temp = 0.2) => {
+          const genModel = genAI.getGenerativeModel({
+            model: modelName,
+            generationConfig: {
+              temperature: temp,
+              topP: 0.8,
+              maxOutputTokens: 8192,
+              responseMimeType: 'application/json',
+              thinkingConfig: { thinkingBudget: 0 }
+            }
+          });
+          const result = await genModel.generateContent(prompt);
+          const responseText = result.response.text();
+          let cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const firstBrace = cleanJson.indexOf('{');
+          const lastBrace = cleanJson.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace !== -1) {
+            cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
+          }
+          try {
+            return JSON.parse(cleanJson);
+          } catch (parseErr) {
+            logger.error(`[AI Reasoning] JSON parse failed at error: ${parseErr.message}. Sample around position 600:\n${cleanJson.slice(550, 700)}`);
+            throw parseErr;
+          }
+        };
+
+        const candidateModels = [
+          this.modelName,
+          'gemini-2.5-flash-lite',
+          'gemini-3.1-flash-lite',
+          'gemini-3.5-flash-lite',
+          'gemini-2.5-flash'
+        ].filter((v, i, a) => a.indexOf(v) === i);
+        let usedModel = this.modelName;
+
+        for (const candidate of candidateModels) {
+          try {
+            rcaReport = await executeInference(candidate, 0.2);
+            usedModel = candidate;
+            break;
+          } catch (modelErr) {
+            geminiError = modelErr.message;
+            logger.warn(`[AI Reasoning] Inference with ${candidate} encountered error (${modelErr.message}). Retrying with next model...`);
+            await new Promise(r => setTimeout(r, 1200));
+          }
+        }
+
+        if (rcaReport) {
+          rcaReport.provider = 'Google Gemini LLM';
+          rcaReport.model = usedModel;
+        }
       } catch (err) {
         geminiError = err.message;
         logger.error(`[AI Reasoning] Gemini API call failed: ${err.message}`);
