@@ -1,6 +1,6 @@
 const axios = require('axios');
 const logger = require('../utils/logger')('PrometheusAdapter');
-
+ 
 const MONITORED_SERVICES = [
   'gateway-service',
   'order-service',
