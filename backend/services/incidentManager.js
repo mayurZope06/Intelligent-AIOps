@@ -47,7 +47,7 @@ class IncidentManager {
     return list.find(i => i.id === id) || null;
   }
 
-  create({ title, description, service, severity = 'P1-Critical', analysis = null, trigger = 'MANUAL' }) {
+  create({ title, description, service, severity = 'P1-Critical', analysis = null, trigger = 'MANUAL', anomalies = [] }) {
     const list = storage.read(this.incidentsFile, []);
     const id = `INC-${Math.floor(1000 + Math.random() * 9000)}`;
     
@@ -65,6 +65,7 @@ class IncidentManager {
       resolutionNotes: '',
       notes: [],
       analysis,
+      anomalies: Array.isArray(anomalies) ? anomalies : [],
       remediationAudit: null
     };
 
@@ -102,6 +103,13 @@ class IncidentManager {
     return updated;
   }
 
+  resolveIncident(id, notes = '') {
+    return this.update(id, {
+      status: 'RESOLVED',
+      resolutionNotes: notes
+    });
+  }
+
   delete(id) {
     const list = storage.read(this.incidentsFile, []);
     const filtered = list.filter(i => i.id !== id);
@@ -127,24 +135,32 @@ class IncidentManager {
     return note;
   }
 
-  recordRemediation(id, { action, approvedBy = 'DevOps SRE', result = 'SUCCESS' }) {
+  recordRemediation(id, { action, approvedBy = 'DevOps SRE', result = 'SUCCESS', verified = false, notes = '' }) {
     const auditLogs = storage.read(this.auditFile, []);
     const auditEntry = {
       incidentId: id,
       action,
       approvedBy,
       result,
+      verified: !!verified,
       timestamp: new Date().toISOString()
     };
     auditLogs.unshift(auditEntry);
     storage.write(this.auditFile, auditLogs);
 
-    // Update incident state to RESOLVED
-    this.update(id, {
-      status: 'RESOLVED',
-      resolutionNotes: `Remediation action '${action}' approved by ${approvedBy} and executed successfully.`,
-      remediationAudit: auditEntry
-    });
+    if (verified) {
+      this.update(id, {
+        status: 'RESOLVED',
+        resolutionNotes: notes || `Remediation action '${action}' approved by ${approvedBy} and verified by Prometheus telemetry.`,
+        remediationAudit: auditEntry
+      });
+    } else {
+      this.update(id, {
+        status: 'INVESTIGATING',
+        resolutionNotes: notes || `Remediation action '${action}' executed, but Prometheus telemetry confirms service is still anomalous.`,
+        remediationAudit: auditEntry
+      });
+    }
 
     return auditEntry;
   }

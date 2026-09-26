@@ -1,6 +1,6 @@
 // Microservice Dependency Topology & Architectural Metadata
-// Represents the SPPU Final Year Project distributed microservices architecture:
-// Multi-Tier Architecture: Client -> API Gateway -> [Auth, Order] -> [Redis, Inventory, Payment, Notification] -> [MongoDB, Stripe Gateway]
+// Represents the real core microservices pipeline:
+// Client (:5173) -> API Gateway (:4000) -> [Auth (:4003), Order (:4001)] -> [Inventory (:4004), Payment (:4002)] -> MongoDB Cluster (:27017)
 
 const dependencyTopology = {
   nodes: [
@@ -33,7 +33,7 @@ const dependencyTopology = {
       metricsUrl: 'http://localhost:4003/metrics',
       criticality: 'P1-Critical',
       team: 'Security & IAM',
-      downstream: ['cache-redis']
+      downstream: []
     },
     {
       id: 'order-service',
@@ -44,18 +44,18 @@ const dependencyTopology = {
       metricsUrl: 'http://localhost:4001/metrics',
       criticality: 'P1-Critical',
       team: 'Commerce Team',
-      downstream: ['inventory-service', 'payment-service', 'notification-service']
+      downstream: ['inventory-service', 'payment-service']
     },
     {
       id: 'inventory-service',
-      name: 'Inventory & Stock Service',
+      name: 'Inventory Service',
       type: 'service',
       port: 4004,
       healthUrl: 'http://localhost:4004/health',
       metricsUrl: 'http://localhost:4004/metrics',
-      criticality: 'P2-High',
+      criticality: 'P1-Critical',
       team: 'Logistics Team',
-      downstream: ['database']
+      downstream: []
     },
     {
       id: 'payment-service',
@@ -66,28 +66,7 @@ const dependencyTopology = {
       metricsUrl: 'http://localhost:4002/metrics',
       criticality: 'P1-Critical',
       team: 'Fintech Team',
-      downstream: ['database', 'payment-gateway']
-    },
-    {
-      id: 'notification-service',
-      name: 'Notification Service',
-      type: 'service',
-      port: 4005,
-      healthUrl: 'http://localhost:4005/health',
-      metricsUrl: 'http://localhost:4005/metrics',
-      criticality: 'P3-Moderate',
-      team: 'Platform Messaging',
-      downstream: []
-    },
-    {
-      id: 'cache-redis',
-      name: 'Redis Cache Cluster',
-      type: 'cache',
-      port: 6379,
-      healthUrl: null,
-      criticality: 'P1-Critical',
-      team: 'Infra Ops',
-      downstream: []
+      downstream: ['database']
     },
     {
       id: 'database',
@@ -98,43 +77,28 @@ const dependencyTopology = {
       criticality: 'P1-Critical',
       team: 'Database Ops',
       downstream: []
-    },
-    {
-      id: 'payment-gateway',
-      name: 'External Payment Gateway',
-      type: 'external',
-      port: 443,
-      healthUrl: null,
-      criticality: 'P1-Critical',
-      team: 'Third-Party Partner',
-      downstream: []
     }
   ],
   edges: [
     { id: 'e-client-gw', source: 'frontend', target: 'gateway-service', label: 'HTTPS / Ingress' },
-    { id: 'e-gw-auth', source: 'gateway-service', target: 'auth-service', label: 'gRPC / Auth Verify' },
+    { id: 'e-gw-auth', source: 'gateway-service', target: 'auth-service', label: 'REST / Verify' },
     { id: 'e-gw-order', source: 'gateway-service', target: 'order-service', label: 'REST / Checkout' },
-    { id: 'e-auth-cache', source: 'auth-service', target: 'cache-redis', label: 'Redis Session Cache' },
-    { id: 'e-order-inv', source: 'order-service', target: 'inventory-service', label: 'gRPC / Stock Check' },
-    { id: 'e-order-payment', source: 'order-service', target: 'payment-service', label: 'REST / Transactions' },
-    { id: 'e-order-notif', source: 'order-service', target: 'notification-service', label: 'Async Events / PubSub' },
-    { id: 'e-inv-db', source: 'inventory-service', target: 'database', label: 'Mongo Stock Queries' },
-    { id: 'e-payment-db', source: 'payment-service', target: 'database', label: 'Mongo Connection Pool' },
-    { id: 'e-payment-gw', source: 'payment-service', target: 'payment-gateway', label: 'HTTPS / Stripe API' }
+    { id: 'e-order-inv', source: 'order-service', target: 'inventory-service', label: 'REST / Stock Reserve' },
+    { id: 'e-order-payment', source: 'order-service', target: 'payment-service', label: 'REST / Charge' },
+    { id: 'e-payment-db', source: 'payment-service', target: 'database', label: 'Mongo Connection Pool' }
   ],
   // Pre-computed upstream and downstream dependency lookups
   dependencyChains: {
-    'payment-gateway': { downstream: [], upstream: ['payment-service', 'order-service', 'gateway-service', 'frontend'] },
-    'database': { downstream: [], upstream: ['payment-service', 'inventory-service', 'order-service', 'gateway-service', 'frontend'] },
-    'cache-redis': { downstream: [], upstream: ['auth-service', 'gateway-service', 'frontend'] },
-    'notification-service': { downstream: [], upstream: ['order-service', 'gateway-service', 'frontend'] },
-    'payment-service': { downstream: ['database', 'payment-gateway'], upstream: ['order-service', 'gateway-service', 'frontend'] },
-    'inventory-service': { downstream: ['database'], upstream: ['order-service', 'gateway-service', 'frontend'] },
-    'auth-service': { downstream: ['cache-redis'], upstream: ['gateway-service', 'frontend'] },
-    'order-service': { downstream: ['inventory-service', 'payment-service', 'notification-service', 'database', 'payment-gateway'], upstream: ['gateway-service', 'frontend'] },
-    'gateway-service': { downstream: ['auth-service', 'order-service', 'cache-redis', 'inventory-service', 'payment-service', 'notification-service', 'database', 'payment-gateway'], upstream: ['frontend'] },
+    'database': { downstream: [], upstream: ['payment-service', 'order-service', 'gateway-service', 'frontend'] },
+    'payment-service': { downstream: ['database'], upstream: ['order-service', 'gateway-service', 'frontend'] },
+    'inventory-service': { downstream: [], upstream: ['order-service', 'gateway-service', 'frontend'] },
+    'auth-service': { downstream: [], upstream: ['gateway-service', 'frontend'] },
+    'order-service': { downstream: ['inventory-service', 'payment-service', 'database'], upstream: ['gateway-service', 'frontend'] },
+    'gateway-service': { downstream: ['auth-service', 'order-service', 'inventory-service', 'payment-service', 'database'], upstream: ['frontend'] },
     'frontend': { downstream: ['gateway-service', 'auth-service', 'order-service'], upstream: [] }
   }
 };
 
 module.exports = dependencyTopology;
+
+

@@ -9,16 +9,15 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
       className="toast-container"
       style={{
         position: 'fixed',
-        top: 20,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        bottom: 24,
+        right: 24,
         zIndex: 99999,
         display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
+        flexDirection: 'column-reverse',
+        alignItems: 'flex-end',
         gap: 10,
-        maxWidth: 460,
-        width: 'calc(100% - 32px)',
+        maxWidth: 380,
+        width: 'calc(100% - 48px)',
         pointerEvents: 'none'
       }}
     >

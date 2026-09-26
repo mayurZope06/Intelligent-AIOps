@@ -1,0 +1,154 @@
+version: '3.8'
+
+services:
+  # 1. API Gateway (Public Ingress)
+  gateway-service:
+    build:
+      context: ./services/gateway-service
+      dockerfile: Dockerfile
+    container_name: aiops-gateway-service
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-4000}:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - AUTH_SERVICE_URL=http://auth-service:4003
+      - ORDER_SERVICE_URL=http://order-service:4001
+      - DOWNSTREAM_TIMEOUT_MS=3000
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4000/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - aiops-network
+
+  # 2. Auth & IAM Service
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: aiops-auth-service
+    restart: unless-stopped
+    ports:
+      - "${AUTH_PORT:-4003}:4003"
+    environment:
+      - NODE_ENV=production
+      - PORT=4003
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4003/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - aiops-network
+
+  # 3. Order Service
+  order-service:
+    build:
+      context: ./services/order-service
+      dockerfile: Dockerfile
+    container_name: aiops-order-service
+    restart: unless-stopped
+    ports:
+      - "${ORDER_PORT:-4001}:4001"
+    environment:
+      - NODE_ENV=production
+      - PORT=4001
+      - PAYMENT_SERVICE_URL=http://payment-service:4002
+      - INVENTORY_SERVICE_URL=http://inventory-service:4004
+      - DOWNSTREAM_TIMEOUT_MS=3000
+    depends_on:
+      payment-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4001/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - aiops-network
+
+  # 4. Payment Service (Fault injection & remediation endpoint)
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: aiops-payment-service
+    restart: unless-stopped
+    ports:
+      # Exposed to host for direct AIOps chaos testing and remediation
+      - "${PAYMENT_PORT:-4002}:4002"
+    environment:
+      - NODE_ENV=production
+      - PORT=4002
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4002/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - aiops-network
+
+  # 5. Inventory Service
+  inventory-service:
+    build:
+      context: ./services/inventory-service
+      dockerfile: Dockerfile
+    container_name: aiops-inventory-service
+    restart: unless-stopped
+    ports:
+      - "${INVENTORY_PORT:-4004}:4004"
+    environment:
+      - NODE_ENV=production
+      - PORT=4004
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4004/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - aiops-network
+
+  # 6. Prometheus Telemetry Server
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: aiops-prometheus
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - gateway-service
+      - auth-service
+      - order-service
+      - payment-service
+      - inventory-service
+    networks:
+      - aiops-network
+
+networks:
+  aiops-network:
+    driver: bridge
+    name: aiops-distributed-network
+

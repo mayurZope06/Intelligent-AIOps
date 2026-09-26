@@ -1,50 +1,88 @@
 const axios = require('axios');
 const logger = require('../utils/logger')('PrometheusAdapter');
 
+const MONITORED_SERVICES = [
+  'gateway-service',
+  'order-service',
+  'payment-service',
+  'auth-service',
+  'inventory-service'
+];
+
 class PrometheusAdapter {
   constructor() {
     this.promUrl = process.env.PROMETHEUS_URL || 'http://localhost:9090';
-    this.serviceEndpoints = {
-      'gateway-service': process.env.GATEWAY_URL ? `${process.env.GATEWAY_URL}/metrics` : 'http://localhost:4000/metrics',
-      'auth-service': process.env.AUTH_URL ? `${process.env.AUTH_URL}/metrics` : 'http://localhost:4003/metrics',
-      'order-service': process.env.ORDER_URL ? `${process.env.ORDER_URL}/metrics` : 'http://localhost:4001/metrics',
-      'inventory-service': process.env.INVENTORY_URL ? `${process.env.INVENTORY_URL}/metrics` : 'http://localhost:4004/metrics',
-      'payment-service': process.env.PAYMENT_URL ? `${process.env.PAYMENT_URL}/metrics` : 'http://localhost:4002/metrics',
-      'notification-service': process.env.NOTIF_URL ? `${process.env.NOTIF_URL}/metrics` : 'http://localhost:4005/metrics'
-    };
     this.activeScenario = 'none';
   }
 
   setSimulationScenario(scenario) {
     this.activeScenario = scenario || 'none';
     logger.info(`Telemetry test scenario updated to: ${this.activeScenario}`);
-  }
 
-  // Parse Prometheus exposition text format
-  parsePrometheusText(text) {
-    const metrics = {};
-    if (!text || typeof text !== 'string') return metrics;
-    const lines = text.split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      
-      const match = trimmed.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)\s*(\{.*?\})?\s+([0-9eE\.\+\-]+)$/);
-      if (match) {
-        const metricName = match[1];
-        const labels = match[2] || '';
-        const value = parseFloat(match[3]);
-        if (!metrics[metricName]) metrics[metricName] = [];
-        metrics[metricName].push({ labels, value });
-      }
+    // If an operator chooses a chaos scenario, dispatch the fault injection
+    // directly to the physical service so real metric counters and gauges react in Prometheus.
+    const paymentUrl = process.env.PAYMENT_URL || 'http://localhost:4002';
+    if (this.activeScenario === 'none' || this.activeScenario === 'reset') {
+      axios.post(`${paymentUrl}/api/simulate-failure`, { mode: 'reset', fail: false }, { timeout: 1500 })
+        .catch(err => logger.debug(`Could not dispatch reset to payment-service: ${err.message}`));
+    } else {
+      axios.post(`${paymentUrl}/api/simulate-failure`, { mode: this.activeScenario, fail: true }, { timeout: 1500 })
+        .catch(err => logger.debug(`Could not dispatch failure simulation to payment-service: ${err.message}`));
     }
-    return metrics;
   }
 
-  // Query live metrics from Prometheus if running, else directly probe configured endpoints
+  // Execute an instant PromQL query against Prometheus HTTP API (/api/v1/query)
+  async query(promQL) {
+    const url = `${this.promUrl}/api/v1/query`;
+    const res = await axios.get(url, {
+      params: { query: promQL },
+      timeout: 3000
+    });
+    if (res.data?.status !== 'success') {
+      throw new Error(`Prometheus query error: ${res.data?.error || 'Unknown query failure'}`);
+    }
+    return res.data?.data?.result || [];
+  }
+
+  // Execute a range PromQL query against Prometheus HTTP API (/api/v1/query_range)
+  async queryRange(promQL, start, end, step = '5s') {
+    const url = `${this.promUrl}/api/v1/query_range`;
+    const res = await axios.get(url, {
+      params: { query: promQL, start, end, step },
+      timeout: 4000
+    });
+    if (res.data?.status !== 'success') {
+      throw new Error(`Prometheus query_range error: ${res.data?.error || 'Unknown query_range failure'}`);
+    }
+    return res.data?.data?.result || [];
+  }
+
+  // Query scrape targets from Prometheus HTTP API (/api/v1/targets)
+  async getTargets() {
+    const url = `${this.promUrl}/api/v1/targets`;
+    const res = await axios.get(url, { timeout: 2500 });
+    if (res.data?.status !== 'success') {
+      throw new Error(`Prometheus targets error: ${res.data?.error || 'Unknown targets failure'}`);
+    }
+    return res.data?.data?.activeTargets || [];
+  }
+
+  // Format Prometheus label set into string representation '{k="v", ...}'
+  formatLabels(metricLabels) {
+    if (!metricLabels || typeof metricLabels !== 'object') return '';
+    const parts = [];
+    for (const [k, v] of Object.entries(metricLabels)) {
+      if (k === '__name__' || k === 'job' || k === 'service') continue;
+      parts.push(`${k}="${v}"`);
+    }
+    return parts.length > 0 ? `{${parts.join(', ')}}` : '';
+  }
+
+  // Primary telemetry acquisition pass
+  // Prometheus is the SINGLE SOURCE OF TRUTH. No direct scraping fallback, no simulated baseline.
   async queryMetrics() {
     const results = {
-      source: 'live-telemetry',
+      source: 'prometheus-server',
       timestamp: new Date().toISOString(),
       prometheusConnected: false,
       services: {},
@@ -52,289 +90,358 @@ class PrometheusAdapter {
       rawMetrics: {}
     };
 
-    // 1. Try querying Prometheus instance if running
-    try {
-      const promTargets = await axios.get(`${this.promUrl}/api/v1/targets`, { timeout: 1000 });
-      if (promTargets.data?.status === 'success') {
-        results.prometheusConnected = true;
-        results.source = 'prometheus-server';
-        logger.debug(`Connected to Prometheus server at ${this.promUrl}`);
-      }
-    } catch {
-      results.prometheusConnected = false;
+    // Initialize all monitored services in results structure
+    for (const svc of MONITORED_SERVICES) {
+      results.services[svc] = {
+        status: 'OFFLINE',
+        endpoint: null,
+        lastScrape: null,
+        error: 'Waiting for Prometheus scrape data'
+      };
+      results.rawMetrics[svc] = {};
     }
 
-    // 2. Query configured service endpoints in parallel for fast response
-    await Promise.all(
-      Object.entries(this.serviceEndpoints).map(async ([service, endpoint]) => {
-        try {
-          const res = await axios.get(endpoint, { timeout: 300 });
-          const parsed = this.parsePrometheusText(res.data);
-          results.rawMetrics[service] = parsed;
-          results.services[service] = { status: 'ONLINE', endpoint, lastScrape: new Date().toISOString() };
-          logger.debug(`Target ${service} is ONLINE at ${endpoint} (${Object.keys(parsed).length} metrics parsed)`);
+    // 1. Check Prometheus Targets to assess scrape health for each service
+    let activeTargets = [];
+    try {
+      activeTargets = await this.getTargets();
+      results.prometheusConnected = true;
+      logger.debug(`Connected to Prometheus server at ${this.promUrl} (${activeTargets.length} active targets)`);
+    } catch (err) {
+      results.prometheusConnected = false;
+      results.source = 'prometheus-unreachable';
+      logger.warn(`Failed to connect to Prometheus at ${this.promUrl}: ${err.message}`);
 
-          // Analyze real metrics for genuine anomalies
-          if (service === 'payment-service') {
-            const dbErrors = parsed['payment_db_errors_total'];
-            if (dbErrors && dbErrors.some(e => e.value > 0)) {
-              const val = dbErrors.reduce((acc, cur) => acc + cur.value, 0);
-              results.anomalies.push({
-                service: 'payment-service',
-                metric: 'payment_db_errors_total',
-                value: val,
-                threshold: 0,
-                severity: 'CRITICAL',
-                description: `Database transaction write errors observed: ${val} queries rejected.`
-              });
-            }
+      for (const svc of MONITORED_SERVICES) {
+        results.services[svc] = {
+          status: 'OFFLINE',
+          endpoint: null,
+          lastScrape: null,
+          error: `Prometheus server unreachable at ${this.promUrl}: ${err.message}`
+        };
+      }
 
-            const poolMetric = parsed['payment_active_connections'];
-            if (poolMetric && poolMetric[0] && poolMetric[0].value >= 90) {
-              results.anomalies.push({
-                service: 'payment-service',
-                metric: 'payment_active_connections',
-                value: poolMetric[0].value,
-                threshold: 90,
-                severity: 'CRITICAL',
-                description: `Connection pool exhausted: ${poolMetric[0].value}/100 sockets utilized.`
-              });
-            }
-          }
-
-          if (service === 'order-service') {
-            const downstreamErrors = parsed['order_downstream_payment_errors_total'];
-            if (downstreamErrors && downstreamErrors.some(e => e.value > 0)) {
-              const val = downstreamErrors.reduce((acc, cur) => acc + cur.value, 0);
-              results.anomalies.push({
-                service: 'order-service',
-                metric: 'order_downstream_payment_errors_total',
-                value: val,
-                threshold: 0,
-                severity: 'HIGH',
-                description: `Downstream payment service failures: ${val} order checkouts failed.`
-              });
-            }
-          }
-
-          if (service === 'gateway-service') {
-            const gwErrors = parsed['gateway_checkout_errors_total'];
-            if (gwErrors && gwErrors.some(e => e.value > 0)) {
-              const val = gwErrors.reduce((acc, cur) => acc + cur.value, 0);
-              results.anomalies.push({
-                service: 'gateway-service',
-                metric: 'gateway_checkout_errors_total',
-                value: val,
-                threshold: 0,
-                severity: 'HIGH',
-                description: `Gateway customer checkout errors: ${val} 5xx errors propagated.`
-              });
-            }
-          }
-        } catch (err) {
-          // If real service is not listening on this port, use simulated baseline state
-          results.services[service] = {
-            status: 'ONLINE',
-            endpoint,
-            mode: 'simulated-baseline',
-            lastScrape: new Date().toISOString()
-          };
-        }
-      })
-    );
-
-    // 3. Inject Test Scenario Anomalies if operator has activated a scenario
-    if (this.activeScenario === 'high_cpu') {
       results.anomalies.push({
-        service: 'payment-service',
-        metric: 'payment_cpu_utilization_ratio',
-        value: 0.94,
-        threshold: 0.85,
-        severity: 'CRITICAL',
-        description: 'Sustained event loop lag (>500ms) and CPU exhaustion (>90%). Matching SOP-03.'
-      });
-      results.anomalies.push({
-        service: 'order-service',
-        metric: 'order_downstream_latency_ms',
-        value: 1450,
-        threshold: 200,
-        severity: 'HIGH',
-        description: 'Downstream payment response latency degraded to 1450ms.'
-      });
-      results.anomalies.push({
-        service: 'gateway-service',
-        metric: 'gateway_checkout_errors_total',
-        value: 18,
-        threshold: 0,
-        severity: 'HIGH',
-        description: 'Gateway 504 Gateway Timeout errors observed on customer checkout routes.'
-      });
-    } else if (this.activeScenario === 'db_overload') {
-      results.anomalies.push({
-        service: 'database',
-        metric: 'mongo_connection_pool_active',
-        value: 100,
-        threshold: 90,
-        severity: 'CRITICAL',
-        description: 'MongoDB primary connection pool saturated: 100/100 sockets utilized.'
-      });
-      results.anomalies.push({
-        service: 'payment-service',
-        metric: 'payment_active_connections',
-        value: 98,
-        threshold: 90,
-        severity: 'CRITICAL',
-        description: 'MongoDB connection pool exhausted: 98/100 sockets utilized.'
-      });
-      results.anomalies.push({
-        service: 'payment-service',
-        metric: 'payment_db_errors_total',
-        value: 24,
-        threshold: 0,
-        severity: 'CRITICAL',
-        description: 'Database transaction write errors: 24 socket connection timeouts.'
-      });
-      results.anomalies.push({
-        service: 'inventory-service',
-        metric: 'inventory_db_query_latency_ms',
-        value: 1850,
-        threshold: 150,
-        severity: 'DEGRADED',
-        description: 'Stock queries blocked waiting for MongoDB connection slot.'
-      });
-      results.anomalies.push({
-        service: 'order-service',
-        metric: 'order_downstream_payment_errors_total',
-        value: 35,
-        threshold: 0,
-        severity: 'HIGH',
-        description: 'Cascading downstream payment service timeouts: 35 orders blocked.'
-      });
-      results.anomalies.push({
-        service: 'gateway-service',
-        metric: 'gateway_checkout_errors_total',
-        value: 35,
-        threshold: 0,
-        severity: 'HIGH',
-        description: 'HTTP 502 Bad Gateway customer checkout errors propagated to client.'
-      });
-    } else if (this.activeScenario === 'downstream_failure') {
-      results.anomalies.push({
-        service: 'payment-service',
-        metric: 'service_health',
+        service: 'prometheus-server',
+        metric: 'prometheus_connectivity',
         value: 0,
         threshold: 1,
         severity: 'CRITICAL',
-        description: 'Payment service worker process unresponsive / thread pool deadlock.'
+        description: `Prometheus server unreachable at ${this.promUrl}. AIOps telemetry ingestion interrupted.`
       });
+
+      return results;
+    }
+
+    // Map targets by service identity
+    for (const target of activeTargets) {
+      const svcName = target.labels?.service || target.labels?.job;
+      if (!MONITORED_SERVICES.includes(svcName)) continue;
+
+      const isUp = target.health === 'up';
+      results.services[svcName] = {
+        status: isUp ? 'ONLINE' : 'OFFLINE',
+        endpoint: target.scrapeUrl,
+        lastScrape: target.lastScrape,
+        error: isUp ? null : (target.lastError || 'Target unhealthy')
+      };
+
+      if (!isUp) {
+        results.anomalies.push({
+          service: svcName,
+          metric: 'service_liveness_probe',
+          value: 0,
+          threshold: 1,
+          severity: 'CRITICAL',
+          description: `Microservice ${svcName} is DOWN according to Prometheus: ${target.lastError || 'Scrape connection refused'}`
+        });
+      }
+    }
+
+    // 2. Query all time-series from Prometheus for all monitored services
+    const selector = `{job=~"${MONITORED_SERVICES.join('|')}"}`;
+    let seriesList = [];
+    try {
+      seriesList = await this.query(selector);
+    } catch (err) {
+      logger.error(`Failed to query Prometheus metrics via PromQL selector ${selector}: ${err.message}`);
+      return results;
+    }
+
+    // 3. Populate rawMetrics by service from real Prometheus time-series
+    for (const item of seriesList) {
+      const svc = item.metric?.service || item.metric?.job;
+      const metricName = item.metric?.__name__;
+      if (!svc || !metricName || !MONITORED_SERVICES.includes(svc)) continue;
+
+      const val = parseFloat(item.value ? item.value[1] : 0);
+      const labelsStr = this.formatLabels(item.metric);
+
+      if (!results.rawMetrics[svc][metricName]) {
+        results.rawMetrics[svc][metricName] = [];
+      }
+      results.rawMetrics[svc][metricName].push({
+        labels: labelsStr,
+        value: isNaN(val) ? 0 : val
+      });
+    }
+
+    // Helper: sum all values of a metric for a given service
+    const getMetricSum = (svc, metricName) => {
+      const entries = results.rawMetrics[svc]?.[metricName];
+      if (!entries || entries.length === 0) return 0;
+      return entries.reduce((acc, cur) => acc + (cur.value || 0), 0);
+    };
+
+    // Helper: get maximum value of a metric for a given service
+    const getMetricMax = (svc, metricName) => {
+      const entries = results.rawMetrics[svc]?.[metricName];
+      if (!entries || entries.length === 0) return null;
+      return Math.max(...entries.map(e => e.value || 0));
+    };
+
+    // Helper: get first value of a metric for a given service
+    const getMetricFirst = (svc, metricName) => {
+      const entries = results.rawMetrics[svc]?.[metricName];
+      if (!entries || entries.length === 0) return null;
+      return entries[0].value;
+    };
+
+    // 4. Anomaly Detection from genuine Prometheus metrics
+
+    // --- PAYMENT SERVICE ---
+    const paymentDbErrors = getMetricSum('payment-service', 'payment_db_errors_total');
+    if (paymentDbErrors > 0) {
+      results.anomalies.push({
+        service: 'payment-service',
+        metric: 'payment_db_errors_total',
+        value: paymentDbErrors,
+        threshold: 0,
+        severity: 'CRITICAL',
+        description: `Database transaction write errors observed: ${paymentDbErrors} queries rejected.`
+      });
+    }
+
+    const paymentActiveConns = getMetricFirst('payment-service', 'payment_active_connections');
+    if (paymentActiveConns !== null && paymentActiveConns >= 90) {
+      results.anomalies.push({
+        service: 'payment-service',
+        metric: 'payment_active_connections',
+        value: paymentActiveConns,
+        threshold: 90,
+        severity: 'CRITICAL',
+        description: `Connection pool exhausted: ${paymentActiveConns}/100 sockets utilized.`
+      });
+    } else if (paymentActiveConns !== null && paymentActiveConns >= 75) {
+      results.anomalies.push({
+        service: 'payment-service',
+        metric: 'payment_active_connections',
+        value: paymentActiveConns,
+        threshold: 75,
+        severity: 'HIGH',
+        description: `Connection pool near saturation: ${paymentActiveConns}/100 sockets utilized.`
+      });
+    }
+
+    // Active failure mode gauge
+    const paymentFailureModes = results.rawMetrics['payment-service']?.['payment_failure_mode'] || [];
+    for (const fm of paymentFailureModes) {
+      if (fm.value === 1 && !fm.labels.includes('mode="none"')) {
+        results.anomalies.push({
+          service: 'payment-service',
+          metric: 'payment_failure_mode',
+          value: 1,
+          threshold: 0,
+          severity: 'CRITICAL',
+          description: `Payment service fault injection active ${fm.labels}. Matching operational SOP.`
+        });
+      }
+    }
+
+    const paymentFailures = getMetricSum('payment-service', 'payment_failure_total');
+    if (paymentFailures > 0 && paymentDbErrors === 0) {
+      results.anomalies.push({
+        service: 'payment-service',
+        metric: 'payment_failure_total',
+        value: paymentFailures,
+        threshold: 0,
+        severity: 'HIGH',
+        description: `Payment processing operations failed: ${paymentFailures} transactions rejected.`
+      });
+    }
+
+    // --- ORDER SERVICE ---
+    const orderFailureModes = results.rawMetrics['order-service']?.['order_failure_mode'] || [];
+    for (const fm of orderFailureModes) {
+      if (fm.value === 1 && !fm.labels.includes('mode="none"')) {
+        results.anomalies.push({
+          service: 'order-service',
+          metric: 'order_failure_mode',
+          value: 1,
+          threshold: 0,
+          severity: 'CRITICAL',
+          description: `Order service fault injection active ${fm.labels}. Matching operational SOP.`
+        });
+      }
+    }
+
+    const orderDownstreamPaymentErrors = getMetricSum('order-service', 'order_downstream_payment_errors_total');
+    if (orderDownstreamPaymentErrors > 0) {
       results.anomalies.push({
         service: 'order-service',
         metric: 'order_downstream_payment_errors_total',
-        value: 42,
+        value: orderDownstreamPaymentErrors,
         threshold: 0,
         severity: 'HIGH',
-        description: 'Downstream payment-service timeout: 42 order checkout RPCs failed.'
+        description: `Downstream payment service failures: ${orderDownstreamPaymentErrors} order checkouts failed.`
       });
+    }
+
+    const orderFailures = getMetricSum('order-service', 'order_failure_total');
+    if (orderFailures > 0 && orderDownstreamPaymentErrors === 0) {
+      results.anomalies.push({
+        service: 'order-service',
+        metric: 'order_failure_total',
+        value: orderFailures,
+        threshold: 0,
+        severity: 'HIGH',
+        description: `Order creation failures: ${orderFailures} order transactions failed.`
+      });
+    }
+
+    // --- GATEWAY SERVICE ---
+    const gatewayFailureModes = results.rawMetrics['gateway-service']?.['gateway_failure_mode'] || [];
+    for (const fm of gatewayFailureModes) {
+      if (fm.value === 1 && !fm.labels.includes('mode="none"')) {
+        results.anomalies.push({
+          service: 'gateway-service',
+          metric: 'gateway_failure_mode',
+          value: 1,
+          threshold: 0,
+          severity: 'CRITICAL',
+          description: `API Gateway fault injection active ${fm.labels}. Matching operational SOP.`
+        });
+      }
+    }
+
+    const gatewayCheckoutErrors = getMetricSum('gateway-service', 'gateway_checkout_errors_total');
+    if (gatewayCheckoutErrors > 0) {
       results.anomalies.push({
         service: 'gateway-service',
         metric: 'gateway_checkout_errors_total',
-        value: 42,
+        value: gatewayCheckoutErrors,
         threshold: 0,
         severity: 'HIGH',
-        description: 'Gateway customer checkout errors: 42 5xx errors propagated.'
+        description: `Gateway customer checkout errors: ${gatewayCheckoutErrors} 5xx errors propagated.`
       });
-    } else if (this.activeScenario === 'cache_stampede') {
-      results.anomalies.push({
-        service: 'cache-redis',
-        metric: 'redis_memory_utilization_ratio',
-        value: 0.98,
-        threshold: 0.85,
-        severity: 'CRITICAL',
-        description: 'Redis memory exhaustion (98%) and eviction storm (>4500 keys/sec dropped).'
-      });
-      results.anomalies.push({
-        service: 'auth-service',
-        metric: 'auth_session_validation_latency_ms',
-        value: 890,
-        threshold: 80,
-        severity: 'DEGRADED',
-        description: 'Session token cache miss rate 94%: DB fallback latency spike.'
-      });
+    }
+
+    const gatewayUpstreamErrors = getMetricSum('gateway-service', 'gateway_upstream_errors_total');
+    if (gatewayUpstreamErrors > 0 && gatewayCheckoutErrors === 0) {
       results.anomalies.push({
         service: 'gateway-service',
-        metric: 'gateway_auth_proxy_timeouts_total',
-        value: 28,
+        metric: 'gateway_upstream_errors_total',
+        value: gatewayUpstreamErrors,
         threshold: 0,
         severity: 'HIGH',
-        description: 'Gateway authentication filter timeout: 28 requests delayed/failed.'
+        description: `Gateway upstream call errors: ${gatewayUpstreamErrors} downstream requests failed.`
       });
-    } else if (this.activeScenario === 'inventory_lock') {
+    }
+
+    const gatewayFailures = getMetricSum('gateway-service', 'gateway_failure_total');
+    if (gatewayFailures > 0 && gatewayCheckoutErrors === 0 && gatewayUpstreamErrors === 0) {
+      results.anomalies.push({
+        service: 'gateway-service',
+        metric: 'gateway_failure_total',
+        value: gatewayFailures,
+        threshold: 0,
+        severity: 'HIGH',
+        description: `Gateway ingress failures: ${gatewayFailures} client requests failed.`
+      });
+    }
+
+    // --- AUTH SERVICE ---
+    const authFailureModes = results.rawMetrics['auth-service']?.['auth_failure_mode'] || [];
+    for (const fm of authFailureModes) {
+      if (fm.value === 1 && !fm.labels.includes('mode="none"')) {
+        results.anomalies.push({
+          service: 'auth-service',
+          metric: 'auth_failure_mode',
+          value: 1,
+          threshold: 0,
+          severity: 'CRITICAL',
+          description: `Auth service fault injection active ${fm.labels}. Matching operational SOP.`
+        });
+      }
+    }
+
+    const authFailures = getMetricSum('auth-service', 'auth_failure_total');
+    if (authFailures > 0) {
+      results.anomalies.push({
+        service: 'auth-service',
+        metric: 'auth_failure_total',
+        value: authFailures,
+        threshold: 0,
+        severity: authFailures >= 10 ? 'CRITICAL' : 'HIGH',
+        description: `Authentication verification failures: ${authFailures} unauthorized attempts.`
+      });
+    }
+
+    // --- INVENTORY SERVICE ---
+    const inventoryFailureModes = results.rawMetrics['inventory-service']?.['inventory_failure_mode'] || [];
+    for (const fm of inventoryFailureModes) {
+      if (fm.value === 1 && !fm.labels.includes('mode="none"')) {
+        results.anomalies.push({
+          service: 'inventory-service',
+          metric: 'inventory_failure_mode',
+          value: 1,
+          threshold: 0,
+          severity: 'CRITICAL',
+          description: `Inventory service fault injection active ${fm.labels}. Matching operational SOP.`
+        });
+      }
+    }
+
+    const inventoryFailures = getMetricSum('inventory-service', 'inventory_failures_total');
+    if (inventoryFailures > 0) {
       results.anomalies.push({
         service: 'inventory-service',
-        metric: 'inventory_lock_wait_seconds',
-        value: 14.2,
-        threshold: 1.0,
-        severity: 'CRITICAL',
-        description: 'Distributed row lock deadlock on inventory SKU allocation table.'
-      });
-      results.anomalies.push({
-        service: 'order-service',
-        metric: 'order_stock_reservation_timeouts_total',
-        value: 39,
+        metric: 'inventory_failures_total',
+        value: inventoryFailures,
         threshold: 0,
         severity: 'HIGH',
-        description: 'Stock reservation RPC failed deadline: 39 checkout attempts stalled.'
+        description: `Inventory reservation/stock failures: ${inventoryFailures} operations rejected.`
       });
-      results.anomalies.push({
-        service: 'gateway-service',
-        metric: 'gateway_checkout_errors_total',
-        value: 39,
-        threshold: 0,
-        severity: 'HIGH',
-        description: 'HTTP 504 Gateway Timeout: order checkout pipeline blocked.'
-      });
-    } else if (this.activeScenario === 'payment_gateway_down') {
-      results.anomalies.push({
-        service: 'payment-gateway',
-        metric: 'external_gateway_http_status',
-        value: 503,
-        threshold: 200,
-        severity: 'CRITICAL',
-        description: 'Third-party Stripe API endpoint returning HTTP 503 Service Unavailable.'
-      });
-      results.anomalies.push({
-        service: 'payment-service',
-        metric: 'circuit_breaker_state',
-        value: 'OPEN',
-        threshold: 0,
-        severity: 'DEGRADED',
-        description: 'Fintech circuit breaker tripped to OPEN after 15 consecutive external drops.'
-      });
-      results.anomalies.push({
-        service: 'order-service',
-        metric: 'order_payment_rejections_total',
-        value: 27,
-        threshold: 0,
-        severity: 'HIGH',
-        description: 'Payment authorization rejected by upstream provider.'
-      });
-    } else if (this.activeScenario === 'auth_storm') {
-      results.anomalies.push({
-        service: 'auth-service',
-        metric: 'auth_cpu_utilization_ratio',
-        value: 0.98,
-        threshold: 0.85,
-        severity: 'CRITICAL',
-        description: 'Expired JWT flood causing crypto signature thread starvation (98% CPU).'
-      });
-      results.anomalies.push({
-        service: 'gateway-service',
-        metric: 'gateway_auth_rejections_total',
-        value: 120,
-        threshold: 0,
-        severity: 'HIGH',
-        description: 'Ingress burst: 120 client requests rejected with HTTP 401 Unauthorized.'
-      });
+    }
+
+    const inventoryAvail = results.rawMetrics['inventory-service']?.['inventory_available_quantity'] || [];
+    for (const item of inventoryAvail) {
+      if (item.value <= 0) {
+        results.anomalies.push({
+          service: 'inventory-service',
+          metric: 'inventory_available_quantity',
+          value: item.value,
+          threshold: 0,
+          severity: 'CRITICAL',
+          description: `Inventory stock depleted: SKU quantity is ${item.value} ${item.labels}.`
+        });
+      }
+    }
+
+    // --- PROCESS / RUNTIME ANOMALIES (Across all 5 services) ---
+    for (const svc of MONITORED_SERVICES) {
+      // Event loop lag
+      const lagP99 = getMetricMax(svc, 'nodejs_nodejs_eventloop_lag_p99_seconds');
+      if (lagP99 !== null && lagP99 >= 0.5) {
+        results.anomalies.push({
+          service: svc,
+          metric: 'nodejs_nodejs_eventloop_lag_p99_seconds',
+          value: Number(lagP99.toFixed(3)),
+          threshold: 0.5,
+          severity: 'CRITICAL',
+          description: `Severe Node.js event loop lag in ${svc}: ${(lagP99 * 1000).toFixed(0)}ms latency.`
+        });
+      }
     }
 
     return results;

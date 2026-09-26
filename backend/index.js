@@ -2,6 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 
 const dependencyTopology = require('./config/topology');
 const prometheusAdapter = require('./adapters/prometheusAdapter');
@@ -93,10 +96,23 @@ app.get('/api/graph', async (req, res) => {
   try {
     const metricsData = await prometheusAdapter.queryMetrics();
     const anomalies = metricsData.anomalies || [];
-    const failingServiceIds = new Set(anomalies.map(a => a.service));
 
-    const nodesWithHealth = dependencyTopology.nodes.map(node => {
-      const nodeAnomalies = anomalies.filter(a => a.service === node.id);
+    // 1. Identify direct node status from genuine Prometheus anomalies
+    const directStatusMap = {};
+    const directAnomaliesMap = {};
+
+    for (const node of dependencyTopology.nodes) {
+      let nodeAnomalies = anomalies.filter(a => a.service === node.id);
+
+      // Map DB-related payment telemetry directly to the database node
+      if (node.id === 'database') {
+        const dbAnomalies = anomalies.filter(a => 
+          a.service === 'database' || 
+          (a.service === 'payment-service' && (a.metric === 'payment_db_errors_total' || (a.metric === 'payment_active_connections' && a.value >= 90) || a.description?.includes('db_overload')))
+        );
+        nodeAnomalies = [...nodeAnomalies, ...dbAnomalies];
+      }
+
       const isCritical = nodeAnomalies.some(a => a.severity === 'CRITICAL');
       const isDegraded = nodeAnomalies.some(a => a.severity === 'HIGH' || a.severity === 'MEDIUM' || a.severity === 'DEGRADED');
       const serviceInfo = metricsData.services ? metricsData.services[node.id] : null;
@@ -111,6 +127,36 @@ app.get('/api/graph', async (req, res) => {
       } else if (serviceInfo && serviceInfo.status === 'OFFLINE' && serviceInfo.mode !== 'simulated-baseline') {
         status = 'OFFLINE';
       }
+
+      directStatusMap[node.id] = status;
+      directAnomaliesMap[node.id] = nodeAnomalies;
+    }
+
+    // 2. Compute Cascading Upstream Degradation
+    // If a service has downstream dependencies that are CRITICAL/OFFLINE, its status degrades
+    const finalNodesWithHealth = dependencyTopology.nodes.map(node => {
+      let status = directStatusMap[node.id];
+      const nodeAnomalies = [...(directAnomaliesMap[node.id] || [])];
+      const serviceInfo = metricsData.services ? metricsData.services[node.id] : null;
+
+      if (status === 'HEALTHY' && node.id !== 'frontend') {
+        const directDownstream = node.downstream || [];
+        const hasCriticalDownstream = directDownstream.some(dsId => directStatusMap[dsId] === 'CRITICAL' || directStatusMap[dsId] === 'OFFLINE');
+        const hasDegradedDownstream = directDownstream.some(dsId => directStatusMap[dsId] === 'DEGRADED');
+
+        if (hasCriticalDownstream || hasDegradedDownstream) {
+          status = 'DEGRADED';
+          const failingDs = directDownstream.filter(dsId => directStatusMap[dsId] !== 'HEALTHY');
+          nodeAnomalies.push({
+            service: node.id,
+            metric: 'cascading_downstream_dependency',
+            value: 1,
+            severity: 'DEGRADED',
+            description: `Cascading degradation: Downstream dependency [${failingDs.join(', ')}] is failing.`
+          });
+        }
+      }
+
       return {
         ...node,
         status,
@@ -119,13 +165,12 @@ app.get('/api/graph', async (req, res) => {
       };
     });
 
-    // All nodes that are failing (either CRITICAL anomalies, DEGRADED cascades, or OFFLINE outages)
-    const allFailingIds = nodesWithHealth
+    const allFailingIds = finalNodesWithHealth
       .filter(n => n.status === 'CRITICAL' || n.status === 'DEGRADED' || n.status === 'OFFLINE')
       .map(n => n.id);
 
     res.json({
-      nodes: nodesWithHealth,
+      nodes: finalNodesWithHealth,
       edges: dependencyTopology.edges,
       failingServiceIds: allFailingIds,
       rawAnomalies: anomalies,
@@ -273,40 +318,103 @@ app.get('/api/telemetry/scenario', (req, res) => {
   res.json({ activeScenario: prometheusAdapter.activeScenario || 'none' });
 });
 
-// Diagnose a Specific Incident Directly with Gemini + RAG
+// Helper function to build real evidence and correlate signals for an incident
+async function correlateForIncident(incident) {
+  const metricsData = await prometheusAdapter.queryMetrics();
+  const liveAnomalies = metricsData.anomalies || [];
+
+  // Identify anomalies on target service or its upstream/downstream dependencies
+  const relatedAnomalies = liveAnomalies.filter(a =>
+    a.service === incident.service ||
+    (dependencyTopology.dependencyChains[incident.service]?.upstream || []).includes(a.service) ||
+    (dependencyTopology.dependencyChains[incident.service]?.downstream || []).includes(a.service)
+  );
+
+  const anomalies = relatedAnomalies.length > 0
+    ? relatedAnomalies
+    : (incident.anomalies && incident.anomalies.length > 0
+        ? incident.anomalies
+        : [
+            {
+              service: incident.service,
+              metric: 'service_health',
+              value: 0,
+              threshold: 1,
+              severity: incident.severity || 'P1-Critical',
+              description: incident.description || incident.title
+            }
+          ]);
+
+  const rootCauseCandidate = incident.service;
+  const cascading = (dependencyTopology.dependencyChains[rootCauseCandidate]?.upstream || []).filter(
+    s => s !== 'frontend' && (liveAnomalies.some(a => a.service === s) || relatedAnomalies.some(a => a.service === s))
+  );
+
+  const errorLogsByService = await lokiAdapter.getRecentErrorsForServices([rootCauseCandidate, ...cascading]);
+
+  const evidenceSnippets = [];
+  anomalies.forEach(a => evidenceSnippets.push(`[Prometheus Metric] ${a.service}: ${a.metric} = ${a.value} (${a.description})`));
+  for (const [svc, logs] of Object.entries(errorLogsByService)) {
+    if (logs && logs.length > 0) {
+      evidenceSnippets.push(`[Loki Log] ${svc}: "${logs[0].message}"`);
+    }
+  }
+
+  const timeline = [];
+  anomalies.forEach(a => {
+    timeline.push({
+      source: 'METRIC',
+      service: a.service,
+      timestamp: metricsData.timestamp || incident.createdAt,
+      severity: a.severity,
+      summary: a.description,
+      metric: a.metric,
+      value: a.value
+    });
+  });
+
+  for (const [svc, logs] of Object.entries(errorLogsByService)) {
+    logs.forEach(l => {
+      timeline.push({
+        source: 'LOG',
+        service: svc,
+        timestamp: l.timestamp,
+        severity: l.level,
+        summary: l.message
+      });
+    });
+  }
+  timeline.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  return {
+    overallSeverity: incident.severity || 'P1-Critical',
+    rootCauseCandidate,
+    affectedServices: {
+      root: rootCauseCandidate,
+      cascading,
+      all: [rootCauseCandidate, ...cascading]
+    },
+    timeline,
+    evidenceSnippets,
+    anomalies,
+    errorLogsByService
+  };
+}
+
+// Diagnose a Specific Incident Directly with Gemini + RAG (Real Evidence Only)
 app.post('/api/incidents/:id/analyze', async (req, res) => {
   try {
     const incident = incidentManager.getById(req.params.id);
     if (!incident) return res.status(404).json({ error: 'Incident not found' });
 
-    logger.info(`Analyzing incident ${incident.id} with Gemini AI...`);
-    const correlation = {
-      overallSeverity: incident.severity || 'P1-Critical',
-      rootCauseCandidate: incident.service || 'payment-service',
-      affectedServices: {
-        all: [incident.service || 'payment-service'],
-        cascading: ['gateway-service', 'order-service']
-      },
-      timeline: [
-        { timestamp: incident.createdAt, service: incident.service, source: 'INCIDENT', summary: incident.title }
-      ],
-      evidenceSnippets: [
-        `Incident Title: ${incident.title}`,
-        `Observed Symptoms: ${incident.description || 'Elevated latency and socket starvation.'}`,
-        `Service Affected: ${incident.service}`
-      ],
-      anomalies: [
-        {
-          service: incident.service,
-          metric: 'operational_incident',
-          description: incident.description || incident.title,
-          severity: incident.severity
-        }
-      ]
-    };
+    logger.info(`Analyzing incident ${incident.id} for service ${incident.service} with real telemetry...`);
+    const correlation = await correlateForIncident(incident);
 
     const diagnosis = await aiReasoning.generateRCA(correlation);
-    incidentManager.update(incident.id, { analysis: diagnosis.rca });
+    incidentManager.update(incident.id, {
+      analysis: diagnosis.rca,
+      anomalies: correlation.anomalies
+    });
 
     res.json({
       status: 'DIAGNOSED',
@@ -325,19 +433,16 @@ app.post('/api/analyze', async (req, res) => {
   try {
     const { incidentId } = req.body || {};
 
-    // If an incident ID is explicitly passed, analyze that incident directly
+    // If an incident ID is explicitly passed, analyze that incident directly using real telemetry
     if (incidentId) {
       const incident = incidentManager.getById(incidentId);
       if (incident) {
-        const correlation = {
-          overallSeverity: incident.severity || 'P1-Critical',
-          rootCauseCandidate: incident.service || 'payment-service',
-          affectedServices: { all: [incident.service], cascading: ['gateway-service', 'order-service'] },
-          timeline: [{ timestamp: incident.createdAt, service: incident.service, source: 'INCIDENT', summary: incident.title }],
-          evidenceSnippets: [`Incident: ${incident.title}`, `Symptoms: ${incident.description || 'Observed failure'}`],
-          anomalies: [{ service: incident.service, metric: 'operational_incident', description: incident.title, severity: incident.severity }]
-        };
+        const correlation = await correlateForIncident(incident);
         const diagnosis = await aiReasoning.generateRCA(correlation);
+        incidentManager.update(incident.id, {
+          analysis: diagnosis.rca,
+          anomalies: correlation.anomalies
+        });
         return res.json({
           status: 'INCIDENT_DETECTED',
           incidentId: incident.id,
@@ -347,6 +452,7 @@ app.post('/api/analyze', async (req, res) => {
       }
     }
 
+    // Gather live correlation from Prometheus and Loki
     const correlation = await correlationEngine.correlateSignals();
 
     if (!correlation.hasIncident) {
@@ -354,17 +460,13 @@ app.post('/api/analyze', async (req, res) => {
       const openIncidents = incidentManager.getAll({ status: 'OPEN' });
       if (openIncidents && openIncidents.length > 0) {
         const targetIncident = openIncidents[0];
-        logger.info(`No active telemetry anomalies; diagnosing most urgent open incident: ${targetIncident.id}`);
-        const incCorrelation = {
-          overallSeverity: targetIncident.severity || 'P1-Critical',
-          rootCauseCandidate: targetIncident.service || 'payment-service',
-          affectedServices: { all: [targetIncident.service], cascading: ['gateway-service', 'order-service'] },
-          timeline: [{ timestamp: targetIncident.createdAt, service: targetIncident.service, source: 'INCIDENT', summary: targetIncident.title }],
-          evidenceSnippets: [`Incident: ${targetIncident.title}`, `Symptoms: ${targetIncident.description || 'Reported cluster anomaly'}`],
-          anomalies: [{ service: targetIncident.service, metric: 'incident_trigger', description: targetIncident.title, severity: targetIncident.severity }]
-        };
+        logger.info(`Diagnosing open incident: ${targetIncident.id} (${targetIncident.service})`);
+        const incCorrelation = await correlateForIncident(targetIncident);
         const diagnosis = await aiReasoning.generateRCA(incCorrelation);
-        incidentManager.update(targetIncident.id, { analysis: diagnosis.rca });
+        incidentManager.update(targetIncident.id, {
+          analysis: diagnosis.rca,
+          anomalies: incCorrelation.anomalies
+        });
         return res.json({
           status: 'INCIDENT_DETECTED',
           incidentId: targetIncident.id,
@@ -387,6 +489,7 @@ app.post('/api/analyze', async (req, res) => {
       service: correlation.rootCauseCandidate,
       severity: diagnosis.rca.severity,
       analysis: diagnosis.rca,
+      anomalies: correlation.anomalies,
       trigger: 'AUTOMATED_CORRELATION'
     });
 
@@ -405,47 +508,180 @@ app.post('/api/analyze', async (req, res) => {
   }
 });
 
-// 6. Remediation & Audit Log
+// 6. Real Remediation Execution & Prometheus Verification
+const SERVICE_PORTS = {
+  'gateway-service': 4000,
+  'order-service': 4001,
+  'payment-service': 4002,
+  'auth-service': 4003,
+  'inventory-service': 4004
+};
+
+const SCENARIO_ROUTING = {
+  // API Gateway
+  'gateway_outage': { service: 'gateway-service', port: 4000, mode: 'gateway_outage', title: 'API Gateway 502 Outage' },
+  'cache_stampede': { service: 'gateway-service', port: 4000, mode: 'cache_stampede', title: 'API Gateway Cache Storm & Rate Limit' },
+
+  // Order Service
+  'order_deadlock': { service: 'order-service', port: 4001, mode: 'order_deadlock', title: 'Order Circuit Breaker Trip' },
+
+  // Auth Service
+  'auth_storm': { service: 'auth-service', port: 4003, mode: 'auth_storm', title: 'Auth Token Storm & 401 Burst' },
+
+  // Inventory Service
+  'inventory_lock': { service: 'inventory-service', port: 4004, mode: 'inventory_lock', title: 'Inventory Deadlock & Stock Depletion' },
+
+  // Payment Service
+  'high_cpu': { service: 'payment-service', port: 4002, mode: 'high_cpu', title: 'High CPU & Event Loop Saturation' },
+  'payment_gateway_down': { service: 'payment-service', port: 4002, mode: 'payment_gateway_down', title: '3rd-Party Payment Gateway 503 Outage' },
+  'downstream_failure': { service: 'payment-service', port: 4002, mode: 'downstream_failure', title: 'Payment RPC Timeout & Deadlock' },
+
+  // Database (MongoDB Cluster)
+  'db_overload': { service: 'payment-service', port: 4002, mode: 'db_overload', title: 'Database Connection Pool Exhaustion' }
+};
+
+const DOCKER_BIN = process.env.DOCKER_PATH || 
+  (process.env.LOCALAPPDATA ? `"${process.env.LOCALAPPDATA}\\Programs\\DockerDesktop\\resources\\bin\\docker.exe"` : 'docker');
+
+async function restartDockerContainer(containerName) {
+  try {
+    await execAsync(`${DOCKER_BIN} restart ${containerName}`, { timeout: 15000 });
+    return true;
+  } catch (err) {
+    logger.warn(`Docker execution failed with default path (${err.message}), attempting fallback 'docker'`);
+    try {
+      await execAsync(`docker restart ${containerName}`, { timeout: 15000 });
+      return true;
+    } catch (e2) {
+      logger.error(`Failed to restart container ${containerName}: ${e2.message}`);
+      return false;
+    }
+  }
+}
+
+// 6. Remediation Approval Endpoint (Real Action & Prometheus Verification)
 app.post('/api/remediation/approve', async (req, res) => {
-  const { incidentId, action, operatorName = 'DevOps SRE Lead' } = req.body;
+  const { incidentId, action, service, operatorName = 'DevOps SRE Lead' } = req.body;
 
   try {
-    // Attempt dispatch to physical microservice if running
-    await axios.post('http://localhost:4002/api/remediate', { action }, { timeout: 1000 }).catch(() => {});
+    const incident = incidentId ? incidentManager.getById(incidentId) : null;
+    const targetService = service || incident?.service || incident?.analysis?.affectedServices?.root || 'payment-service';
+    const targetPort = SERVICE_PORTS[targetService] || 4002;
 
-    // Reset simulated test scenario back to healthy baseline
-    prometheusAdapter.setSimulationScenario('none');
+    logger.info(`Remediation action '${action}' approved by ${operatorName} for ${targetService}`);
 
-    // Ingest recovery log entries into Loki
-    lokiAdapter.pushLog({
-      service: 'payment-service',
-      level: 'INFO',
-      message: `[REMEDIATION] Action '${action || 'restart_service'}' approved by ${operatorName}. Connection pool drained, worker threads restarted.`
-    });
-    lokiAdapter.pushLog({
-      service: 'order-service',
-      level: 'INFO',
-      message: '[REMEDIATION] Payment service dependency restored to HEALTHY. Cascading circuit breaker closed.'
-    });
-    lokiAdapter.pushLog({
-      service: 'gateway-service',
-      level: 'INFO',
-      message: '[REMEDIATION] Upstream order & payment checkout latency nominal (21ms). Error rate: 0.00%.'
-    });
+    let executionSuccess = false;
+    let executionMethod = '';
 
-    const audit = incidentManager.recordRemediation(incidentId, {
-      action: action || 'restart_service',
-      approvedBy: operatorName,
-      result: 'REMEDIATED_AND_RECOVERED'
-    });
+    // 1. Dispatch real remediation action to the affected physical service
+    try {
+      const remediateRes = await axios.post(`http://localhost:${targetPort}/api/remediate`, {
+        action: action || 'restart_service',
+        operator: operatorName
+      }, { timeout: 3000 });
+
+      if (remediateRes.data?.success) {
+        executionSuccess = true;
+        executionMethod = `${targetService} API hook (/api/remediate)`;
+      }
+    } catch (err) {
+      logger.warn(`Direct ${targetService} /api/remediate failed (${err.message}). Attempting container restart.`);
+    }
+
+    // If direct API failed or action explicitly asks for container restart, execute docker restart
+    if (!executionSuccess || action?.includes('restart_container') || action?.includes('restart_service')) {
+      const restarted = await restartDockerContainer(`aiops-${targetService}`);
+      if (restarted) {
+        executionSuccess = true;
+        executionMethod = 'Docker container restart';
+      }
+    }
+
+    // Always clear cascading upstream/downstream error counters
+    const cascadingServices = Object.keys(SERVICE_PORTS).filter(s => s !== targetService);
+    await Promise.allSettled(cascadingServices.map(s => {
+      const p = SERVICE_PORTS[s];
+      return axios.post(`http://localhost:${p}/api/remediate`, { action: 'cascade_reset' }, { timeout: 1500 });
+    }));
+
+    // 2. Poll Prometheus until recovery is verified by real telemetry or timeout
+    let isRecovered = false;
+    let verifiedMetrics = null;
+    let targetAnomalies = [];
+    let attempts = 0;
+    const maxPollAttempts = 8; // up to 12 seconds (Prometheus scrapes every 2s)
+
+    while (attempts < maxPollAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      verifiedMetrics = await prometheusAdapter.queryMetrics();
+      const remainingAnomalies = verifiedMetrics.anomalies || [];
+      targetAnomalies = remainingAnomalies.filter(a => a.service === targetService);
+      const targetOnline = verifiedMetrics.services[targetService]?.status === 'ONLINE';
+
+      if (targetOnline && targetAnomalies.length === 0) {
+        isRecovered = true;
+        break;
+      }
+      attempts++;
+    }
+
+    // 3. Genuine verification: Did Prometheus confirm the service recovered?
+    let auditEntry = null;
+    let message = '';
+
+    if (isRecovered) {
+      message = `Remediation '${action || 'restart_service'}' executed via ${executionMethod} and VERIFIED by Prometheus telemetry. ${targetService} is HEALTHY with 0 active anomalies.`;
+
+      lokiAdapter.pushLog({
+        service: targetService,
+        level: 'INFO',
+        message: `[REMEDIATION_VERIFIED] Action '${action}' approved by ${operatorName}. Prometheus telemetry confirms ${targetService} is HEALTHY.`
+      });
+
+      if (incidentId) {
+        incidentManager.resolveIncident(incidentId, message);
+        auditEntry = incidentManager.recordRemediation(incidentId, {
+          action: action || 'restart_service',
+          approvedBy: operatorName,
+          result: 'REMEDIATED_AND_RECOVERED',
+          verified: true,
+          notes: message
+        });
+      }
+    } else {
+      message = `Remediation executed via ${executionMethod}, but Prometheus telemetry confirms ${targetService} is STILL FAILING (${targetAnomalies.map(a => `${a.metric}=${a.value}`).join(', ')}). Cluster remains DEGRADED.`;
+
+      lokiAdapter.pushLog({
+        service: targetService,
+        level: 'WARN',
+        message: `[REMEDIATION_UNVERIFIED] Action '${action}' executed, but ${targetService} remains anomalous in Prometheus.`
+      });
+
+      if (incidentId) {
+        auditEntry = incidentManager.recordRemediation(incidentId, {
+          action: action || 'restart_service',
+          approvedBy: operatorName,
+          result: 'REMEDIATION_UNVERIFIED_STILL_FAILING',
+          verified: false,
+          notes: message
+        });
+      }
+    }
 
     res.json({
       success: true,
-      message: `Remediation '${action || 'restart_service'}' approved by ${operatorName} and executed. Cluster health restored.`,
-      audit,
+      recovered: isRecovered,
+      verified: isRecovered,
+      message,
+      targetService,
+      action: action || 'restart_service',
+      activeAnomalies: verifiedMetrics?.anomalies || [],
+      prometheusConnected: verifiedMetrics?.prometheusConnected,
+      audit: auditEntry,
       incident: incidentId ? incidentManager.getById(incidentId) : null
     });
   } catch (err) {
+    logger.error(`Remediation execution failed: ${err.message}`);
     res.status(500).json({ error: 'Failed to execute remediation', details: err.message });
   }
 });
@@ -454,24 +690,140 @@ app.get('/api/remediation/audit', (req, res) => {
   res.json(incidentManager.getAuditLogs());
 });
 
-// 7. Scenario Injection Controls
-app.post('/api/scenarios/inject', async (req, res) => {
-  const { scenario } = req.body;
-  try {
-    if (scenario === 'reset' || scenario === 'none') {
-      await axios.post('http://localhost:4002/api/simulate-failure', { fail: false });
-      return res.json({ message: 'All fault injections cleared. Services healthy.', scenario: 'healthy' });
+// 7. Unified Scenario Injection Handler (Real Microservice Dispatch + Prometheus Observation)
+async function handleScenarioInjection(req, res) {
+  const scenario = req.body.scenario || req.body.mode;
+  logger.info(`Scenario injection requested: ${scenario}`);
+
+  if (!scenario || scenario === 'none' || scenario === 'reset' || scenario === 'healthy') {
+    // 1. Clear faults and remediate across ALL 5 services
+    const services = Object.entries(SERVICE_PORTS).map(([name, port]) => ({ name, port }));
+
+    await Promise.allSettled(services.map(s => 
+      axios.post(`http://localhost:${s.port}/api/simulate-failure`, { fail: false, mode: 'none' }, { timeout: 2000 })
+    ));
+    await Promise.allSettled(services.map(s => 
+      axios.post(`http://localhost:${s.port}/api/remediate`, { action: 'system_reset', operator: 'AIOps Automation' }, { timeout: 2000 })
+    ));
+
+    // Wait for Prometheus to observe clean telemetry
+    let verifiedHealthy = false;
+    let attempts = 0;
+    while (attempts < 6) {
+      await new Promise(r => setTimeout(r, 1500));
+      const metrics = await prometheusAdapter.queryMetrics();
+      if ((metrics.anomalies || []).length === 0) {
+        verifiedHealthy = true;
+        break;
+      }
+      attempts++;
     }
 
-    await axios.post('http://localhost:4002/api/simulate-failure', { mode: scenario, fail: true });
-    res.json({ message: `Successfully injected fault scenario: ${scenario}`, scenario });
+    // Resolve any open incidents
+    const openIncidents = incidentManager.getAll({ status: 'OPEN' });
+    openIncidents.forEach(inc => {
+      incidentManager.resolveIncident(inc.id, 'Fault injections cleared and cluster telemetry verified healthy by Prometheus.');
+    });
+
+    return res.json({
+      success: true,
+      verified: verifiedHealthy,
+      scenario: 'none',
+      message: verifiedHealthy
+        ? 'All fault simulations cleared and cluster verified healthy by Prometheus telemetry.'
+        : 'All fault simulations cleared. Awaiting next Prometheus telemetry cycle.'
+    });
+  }
+
+  const route = SCENARIO_ROUTING[scenario];
+  if (!route) {
+    return res.status(400).json({ error: `Unknown scenario: ${scenario}` });
+  }
+
+  try {
+    // 1. Send failure command to target microservice
+    const serviceRes = await axios.post(`http://localhost:${route.port}/api/simulate-failure`, {
+      mode: route.mode,
+      fail: true
+    }, { timeout: 3000 });
+
+    logger.info(`Microservice ${route.service} accepted fault injection:`, serviceRes.data);
+
+    // 2. Poll Prometheus until it actually observes the changed telemetry!
+    let observedAnomaly = null;
+    let attempts = 0;
+    const maxAttempts = 7; // up to ~10.5 seconds (Prometheus scrape interval is 2s)
+
+    while (attempts < maxAttempts) {
+      await new Promise(r => setTimeout(r, 1500));
+      const metrics = await prometheusAdapter.queryMetrics();
+      const anomalies = metrics.anomalies || [];
+      const match = anomalies.find(a => a.service === route.service);
+      if (match) {
+        observedAnomaly = match;
+        break;
+      }
+      attempts++;
+    }
+
+    if (!observedAnomaly) {
+      logger.warn(`Fault injected to ${route.service}, but Prometheus has not yet observed anomaly after ${attempts * 1.5}s.`);
+      return res.status(202).json({
+        success: true,
+        verified: false,
+        scenario,
+        service: route.service,
+        message: `Fault injected into ${route.service}. Awaiting Prometheus scrape cycle observation.`,
+        pendingVerification: true
+      });
+    }
+
+    // 3. Prometheus telemetry confirmed! Now correlate and create/update incident
+    const correlation = await correlationEngine.correlateSignals();
+
+    // Check if an open incident for this service already exists
+    const openIncidents = incidentManager.getAll({ status: 'OPEN' });
+    let incident = openIncidents.find(i => i.service === route.service);
+
+    if (!incident) {
+      incident = incidentManager.createIncident({
+        title: `${route.title} in ${route.service}`,
+        service: route.service,
+        severity: observedAnomaly.severity || 'CRITICAL',
+        status: 'OPEN',
+        anomalies: [observedAnomaly],
+        description: `Automated detection from real Prometheus metrics: ${observedAnomaly.description}`,
+        correlations: correlation
+      });
+    }
+
+    lokiAdapter.pushLog({
+      service: route.service,
+      level: 'ERROR',
+      message: `[CHAOS_INJECTION_DETECTED] Real Prometheus telemetry confirms ${observedAnomaly.metric} anomaly on ${route.service}: ${observedAnomaly.description}`
+    });
+
+    return res.json({
+      success: true,
+      verified: true,
+      scenario,
+      service: route.service,
+      anomaly: observedAnomaly,
+      incident,
+      message: `Failure detected! Prometheus verified anomalous telemetry on ${route.service}.`
+    });
+
   } catch (err) {
-    res.status(500).json({
-      error: `Failed to inject scenario ${scenario}. Ensure Payment Service is running on port 4002.`,
+    logger.error(`Failed to inject scenario ${scenario}: ${err.message}`);
+    return res.status(500).json({
+      error: `Failed to inject fault into ${route.service}`,
       details: err.message
     });
   }
-});
+}
+
+app.post('/api/scenarios/inject', handleScenarioInjection);
+app.post('/api/telemetry/simulate', handleScenarioInjection);
 
 // 8. RAG Runbooks CRUD
 app.get('/api/rag/runbooks', (req, res) => {

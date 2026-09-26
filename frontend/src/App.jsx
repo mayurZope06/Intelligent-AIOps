@@ -12,6 +12,7 @@ import AuditView from './components/AuditView';
 import SettingsModal from './components/SettingsModal';
 import RCAModal from './components/RCAModal';
 import ToastContainer from './components/ToastContainer';
+import AsyncProgressHUD from './components/AsyncProgressHUD';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -19,76 +20,40 @@ const DEFAULT_NODES = [
   {
     id: 'frontend',
     type: 'serviceNode',
-    position: { x: 40, y: 240 },
+    position: { x: 80, y: 240 },
     data: { id: 'frontend', name: 'Client / Web Frontend', status: 'HEALTHY', port: 5173, team: 'Frontend Platform', type: 'client' }
   },
   {
     id: 'gateway-service',
     type: 'serviceNode',
-    position: { x: 300, y: 240 },
+    position: { x: 360, y: 240 },
     data: { id: 'gateway-service', name: 'API Gateway', status: 'HEALTHY', port: 4000, team: 'Core Infrastructure', type: 'gateway' }
-  },
-  {
-    id: 'auth-service',
-    type: 'serviceNode',
-    position: { x: 580, y: 100 },
-    data: { id: 'auth-service', name: 'Auth & IAM Service', status: 'HEALTHY', port: 4003, team: 'Security & IAM', type: 'service' }
-  },
-  {
-    id: 'cache-redis',
-    type: 'serviceNode',
-    position: { x: 860, y: 100 },
-    data: { id: 'cache-redis', name: 'Redis Cache Cluster', status: 'HEALTHY', port: 6379, team: 'Infra Ops', type: 'cache' }
   },
   {
     id: 'order-service',
     type: 'serviceNode',
-    position: { x: 580, y: 320 },
+    position: { x: 640, y: 240 },
     data: { id: 'order-service', name: 'Order Service', status: 'HEALTHY', port: 4001, team: 'Commerce Team', type: 'service' }
-  },
-  {
-    id: 'inventory-service',
-    type: 'serviceNode',
-    position: { x: 860, y: 220 },
-    data: { id: 'inventory-service', name: 'Inventory & Stock', status: 'HEALTHY', port: 4004, team: 'Logistics Team', type: 'service' }
   },
   {
     id: 'payment-service',
     type: 'serviceNode',
-    position: { x: 860, y: 340 },
+    position: { x: 920, y: 240 },
     data: { id: 'payment-service', name: 'Payment Service', status: 'HEALTHY', port: 4002, team: 'Fintech Team', type: 'service' }
-  },
-  {
-    id: 'notification-service',
-    type: 'serviceNode',
-    position: { x: 860, y: 460 },
-    data: { id: 'notification-service', name: 'Notification Service', status: 'HEALTHY', port: 4005, team: 'Platform Messaging', type: 'service' }
   },
   {
     id: 'database',
     type: 'serviceNode',
-    position: { x: 1140, y: 260 },
+    position: { x: 1200, y: 240 },
     data: { id: 'database', name: 'MongoDB Cluster', status: 'HEALTHY', port: 27017, team: 'Database Ops', type: 'database' }
-  },
-  {
-    id: 'payment-gateway',
-    type: 'serviceNode',
-    position: { x: 1140, y: 390 },
-    data: { id: 'payment-gateway', name: 'External Stripe Gateway', status: 'HEALTHY', port: 443, team: 'Third-Party Partner', type: 'external' }
   }
 ];
 
 const DEFAULT_EDGES = [
   { id: 'e-client-gw', source: 'frontend', target: 'gateway-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-gw-auth', source: 'gateway-service', target: 'auth-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
   { id: 'e-gw-order', source: 'gateway-service', target: 'order-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-auth-cache', source: 'auth-service', target: 'cache-redis', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-order-inv', source: 'order-service', target: 'inventory-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
   { id: 'e-order-payment', source: 'order-service', target: 'payment-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-order-notif', source: 'order-service', target: 'notification-service', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-inv-db', source: 'inventory-service', target: 'database', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-payment-db', source: 'payment-service', target: 'database', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } },
-  { id: 'e-payment-gw', source: 'payment-service', target: 'payment-gateway', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } }
+  { id: 'e-payment-db', source: 'payment-service', target: 'database', animated: true, style: { stroke: 'rgba(255, 255, 255, 0.2)', strokeWidth: 1 } }
 ];
 
 export default function App() {
@@ -141,6 +106,7 @@ export default function App() {
   // Connectivity & Test Scenarios
   const [prometheusConnected, setPrometheusConnected] = useState(false);
   const [activeScenario, setActiveScenario] = useState('none');
+  const [asyncActionStatus, setAsyncActionStatus] = useState(null);
 
   // Professional Apple Toast Notifications State
   const [toasts, setToasts] = useState([]);
@@ -317,18 +283,109 @@ export default function App() {
     return () => clearInterval(interval);
   }, [fetchGraph, fetchIncidents, fetchTelemetry, fetchRunbooks, fetchAudit, fetchSettings, autoRefreshLogs]);
 
-  // Select Anomaly Simulation Scenario
+  // Select Anomaly Simulation Scenario (Real Asynchronous Microservice Dispatch & Prometheus Verification)
   const handleSelectScenario = async (scenario) => {
     setActiveScenario(scenario);
+
+    if (scenario === 'none' || scenario === 'reset') {
+      setAsyncActionStatus({
+        type: 'inject',
+        phase: 'dispatching',
+        title: 'Restoring Cluster Baseline...',
+        message: 'Clearing faults across all microservices and resetting error counters...'
+      });
+
+      try {
+        const res = await axios.post(`${API_BASE}/scenarios/inject`, { scenario: 'none' });
+        await Promise.all([fetchGraph(), fetchTelemetry(), fetchIncidents()]);
+
+        if (res.data?.verified) {
+          setAsyncActionStatus({
+            type: 'inject',
+            phase: 'verified',
+            title: 'Cluster Nominal & Verified',
+            message: 'Prometheus confirms 0 anomalies across all services. Cluster is HEALTHY.'
+          });
+          addToast('Cluster nominal. Prometheus telemetry confirms all services healthy.', 'success', 'Cluster Healthy');
+        } else {
+          setAsyncActionStatus({
+            type: 'inject',
+            phase: 'awaiting_prometheus',
+            title: 'Awaiting Prometheus Sync',
+            message: 'All faults cleared on microservices. Awaiting next scrape cycle...'
+          });
+        }
+      } catch (err) {
+        setAsyncActionStatus({
+          type: 'inject',
+          phase: 'failed',
+          title: 'Reset Failed',
+          message: err.response?.data?.details || err.message
+        });
+      } finally {
+        setTimeout(() => setAsyncActionStatus(null), 4000);
+      }
+      return;
+    }
+
+    // A specific fault scenario chosen
+    setAsyncActionStatus({
+      type: 'inject',
+      phase: 'dispatching',
+      title: 'Injecting Fault...',
+      message: `Dispatching fault scenario '${scenario}' to target microservice...`
+    });
+
+    // Step 2 indicator while waiting for the request to return (backend is polling Prometheus)
+    const timeoutIndicator = setTimeout(() => {
+      setAsyncActionStatus(prev => prev ? {
+        ...prev,
+        phase: 'awaiting_prometheus',
+        title: 'Waiting for Prometheus...',
+        message: 'Microservice entered degraded state. Waiting for Prometheus to observe changed telemetry...'
+      } : null);
+    }, 1200);
+
     try {
-      await axios.post(`${API_BASE}/telemetry/simulate`, { scenario });
+      const res = await axios.post(`${API_BASE}/scenarios/inject`, { scenario });
+      clearTimeout(timeoutIndicator);
+
       await Promise.all([
         fetchGraph(),
         fetchTelemetry(),
         fetchIncidents()
       ]);
+
+      if (res.data?.verified) {
+        setAsyncActionStatus({
+          type: 'inject',
+          phase: 'verified',
+          title: 'Failure Detected & Verified',
+          message: res.data.message || `Prometheus verified anomalous telemetry on ${res.data.service}. Incident declared.`
+        });
+
+        if (res.data.incident) {
+          setSelectedIncident(res.data.incident);
+        }
+      } else {
+        setAsyncActionStatus({
+          type: 'inject',
+          phase: 'unverified',
+          title: 'Detection In Progress',
+          message: res.data.message || 'Fault accepted by microservice, awaiting Prometheus telemetry scrape...'
+        });
+      }
     } catch (err) {
-      console.error('Failed to update test scenario:', err);
+      clearTimeout(timeoutIndicator);
+      setAsyncActionStatus({
+        type: 'inject',
+        phase: 'failed',
+        title: 'Fault Injection Failed',
+        message: err.response?.data?.details || err.message
+      });
+      addToast(err.response?.data?.details || err.message, 'error', 'Injection Error');
+    } finally {
+      setTimeout(() => setAsyncActionStatus(null), 5000);
     }
   };
 
@@ -365,28 +422,70 @@ export default function App() {
     }
   };
 
-  // Human-in-the-Loop Remediation Approval
+  // Human-in-the-Loop Remediation Approval (Real Execution & Verification)
   const handleApproveRemediation = async (incidentId, actionType) => {
     setRemediating(true);
+    setAsyncActionStatus({
+      type: 'remediate',
+      phase: 'dispatching',
+      title: 'Remediation In Progress...',
+      message: `Executing real runbook action '${actionType || 'restart_service'}' on affected service...`
+    });
+
+    const timeoutIndicator = setTimeout(() => {
+      setAsyncActionStatus(prev => prev ? {
+        ...prev,
+        phase: 'awaiting_prometheus',
+        title: 'Verifying with Prometheus...',
+        message: 'Remediation action executed. Re-querying Prometheus and service health until recovery is confirmed...'
+      } : null);
+    }, 1500);
+
     try {
-      await axios.post(`${API_BASE}/remediation/approve`, {
+      const res = await axios.post(`${API_BASE}/remediation/approve`, {
         incidentId,
         action: actionType || 'restart_service',
         operatorName: 'DevOps SRE Lead'
       });
-      setActiveScenario('none');
+      clearTimeout(timeoutIndicator);
+
+      // Refresh graph, incidents, telemetry, and audit based on real telemetry post-remediation
       await Promise.all([
         fetchGraph(),
         fetchIncidents(),
         fetchTelemetry(),
         fetchAudit()
       ]);
-      setShowRcaModal(false);
-      addToast('Remediation action approved and executed. Dependency graph and cluster state restored to HEALTHY.', 'success', 'Remediation Executed');
+
+      if (res.data?.recovered) {
+        setActiveScenario('none');
+        setShowRcaModal(false);
+        setAsyncActionStatus({
+          type: 'remediate',
+          phase: 'verified',
+          title: 'Remediation Verified Successful!',
+          message: res.data.message || 'Prometheus confirmed 0 active anomalies. Service returned to HEALTHY.'
+        });
+      } else {
+        setAsyncActionStatus({
+          type: 'remediate',
+          phase: 'unverified',
+          title: 'Remediation Unverified — Still Failing',
+          message: res.data?.message || 'Remediation executed, but Prometheus telemetry confirms service is STILL FAILING.'
+        });
+      }
     } catch (err) {
-      addToast(err.message, 'error', 'Remediation Failed');
+      clearTimeout(timeoutIndicator);
+      setAsyncActionStatus({
+        type: 'remediate',
+        phase: 'failed',
+        title: 'Remediation Failed',
+        message: err.response?.data?.details || err.message
+      });
+      addToast(err.response?.data?.details || err.message, 'error', 'Remediation Failed');
     } finally {
       setRemediating(false);
+      setTimeout(() => setAsyncActionStatus(null), 5000);
     }
   };
 
@@ -491,6 +590,12 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
         activeScenario={activeScenario}
         onSelectScenario={handleSelectScenario}
+      />
+
+      {/* Asynchronous Operation Progress & Telemetry Verification HUD */}
+      <AsyncProgressHUD 
+        status={asyncActionStatus} 
+        onDismiss={() => setAsyncActionStatus(null)} 
       />
 
       {/* Main Operational View Switcher */}

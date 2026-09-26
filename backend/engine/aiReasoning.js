@@ -51,12 +51,12 @@ class AIReasoningEngine {
 
         const prompt = `
 You are the Intelligent AIOps Engine, an expert incident diagnostic system for microservice architectures.
-Analyze the following multi-source telemetry data, dependency graph, and operational runbook context:
+CRITICAL CONSTRAINT: You must base your diagnosis, evidence citations, and root cause analysis EXCLUSIVELY on the detected Prometheus anomalies, Loki logs, and retrieved operational runbooks provided below. Do NOT invent metric values, hypothetical symptoms, or placeholder evidence.
 
-## Detected Telemetry Anomalies:
+## Detected Telemetry Anomalies (from Prometheus):
 ${JSON.stringify(anomalies, null, 2)}
 
-## Supporting Telemetry & Log Evidence:
+## Supporting Telemetry & Log Evidence (from Loki/Prometheus):
 ${evidenceSnippets.join('\n') || 'No specific error log lines captured.'}
 
 ## Chronological Event Timeline:
@@ -65,9 +65,9 @@ ${timeline.map(t => `- [${t.timestamp}] [${t.service}] [${t.source}]: ${t.summar
 ## Retrieved Operational Runbooks (RAG Context):
 ${ragContextText || 'No specific runbook match.'}
 
-Synthesize these observations and return ONLY a valid JSON object matching this schema:
+Synthesize these real observations and return ONLY a valid JSON object matching this schema:
 {
-  "incidentSummary": "1-2 sentence factual summary of what is happening in the cluster",
+  "incidentSummary": "1-2 sentence factual summary of what is happening in the cluster based strictly on the metrics",
   "severity": "${overallSeverity}",
   "probableRootCause": "Factual explanation of the root cause based strictly on the telemetry evidence",
   "confidence": 92,
@@ -82,19 +82,19 @@ Synthesize these observations and return ONLY a valid JSON object matching this 
     "Alternative technical hypothesis 2"
   ],
   "supportingEvidence": [
-    "Direct citation of metric anomaly or log line"
+    "Direct citation of observed metric anomaly or log line"
   ],
   "retrievedKnowledge": {
     "runbookTitle": "${ragPassages[0] ? ragPassages[0].docTitle : 'Standard Operational Procedure'}",
     "guidanceSummary": "Actionable guidance extracted from runbook"
   },
   "timeline": [
-    { "time": "Relative or ISO time", "service": "Service name", "event": "Event summary", "type": "origin" }
+    { "time": "ISO time", "service": "Service name", "event": "Event summary", "type": "origin" }
   ],
   "remediation": {
     "title": "Actionable remediation title",
     "description": "Concrete step-by-step resolution command or procedure",
-    "command": "POST /api/remediate { action: 'restart_service' }",
+    "command": "POST /api/remediate { service: \\"${rootCauseCandidate}\\", action: \\"restart_service\\" }",
     "actionType": "restart_service",
     "requiresHumanApproval": true
   }
@@ -145,6 +145,76 @@ Output raw JSON only. Do not wrap in markdown tags.
 
     const matchedRunbook = ragPassages[0] || null;
 
+    // Tailor remediation to the actual observed failure mode
+    let remediation = {
+      title: `Restart and Healthcheck ${rootCauseCandidate}`,
+      description: `Restart service container and verify health probes against Prometheus.`,
+      command: `POST /api/remediate { service: "${rootCauseCandidate}", action: "restart_service" }`,
+      actionType: 'restart_service',
+      requiresHumanApproval: true
+    };
+
+    if (primaryAnomaly) {
+      const metric = primaryAnomaly.metric;
+      if (metric === 'payment_db_errors_total' || metric === 'payment_active_connections') {
+        remediation = {
+          title: 'Drain & Reset Payment Connection Pool (SOP-01)',
+          description: 'Flush exhausted sockets on payment-service, drain connection pool, and restore baseline headroom.',
+          command: `POST /api/remediate { service: "payment-service", action: "restart_connection_pool" }`,
+          actionType: 'restart_connection_pool',
+          requiresHumanApproval: true
+        };
+      } else if (metric === 'payment_failure_mode') {
+        remediation = {
+          title: 'Clear Fault Injection & Reset Payment Service',
+          description: 'Reset active failure simulation state and restore healthy transaction processing.',
+          command: `POST /api/remediate { service: "payment-service", action: "reset_fault" }`,
+          actionType: 'reset_fault',
+          requiresHumanApproval: true
+        };
+      } else if (metric === 'gateway_failure_mode' || metric === 'gateway_checkout_errors_total' || metric === 'gateway_upstream_errors_total') {
+        remediation = {
+          title: 'Flush Ingress Cache & Reset API Gateway (SOP-03)',
+          description: 'Flush route caches, reset upstream error counters, and restore healthy proxy pass on API Gateway.',
+          command: `POST /api/remediate { service: "gateway-service", action: "flush_cache" }`,
+          actionType: 'flush_cache',
+          requiresHumanApproval: true
+        };
+      } else if (metric === 'order_failure_mode' || metric === 'order_downstream_payment_errors_total') {
+        remediation = {
+          title: 'Reset Order Circuit Breaker & Flush Saga Queue (SOP-04)',
+          description: 'Reset cascading circuit breaker on order-service and restore upstream checkout pipeline.',
+          command: `POST /api/remediate { service: "order-service", action: "reset_circuit_breaker" }`,
+          actionType: 'reset_circuit_breaker',
+          requiresHumanApproval: true
+        };
+      } else if (metric === 'auth_failure_total') {
+        remediation = {
+          title: 'Flush Auth Token Cache & Rotate JWT Keys',
+          description: 'Clear expired token verification storm and flush auth credentials cache.',
+          command: `POST /api/remediate { service: "auth-service", action: "flush_cache" }`,
+          actionType: 'flush_cache',
+          requiresHumanApproval: true
+        };
+      } else if (metric === 'inventory_failures_total' || metric === 'inventory_available_quantity') {
+        remediation = {
+          title: 'Replenish Inventory SKU Stock & Release Allocation Locks',
+          description: 'Release locked stock allocations and restore catalog item quantities to baseline.',
+          command: `POST /api/remediate { service: "inventory-service", action: "replenish_stock" }`,
+          actionType: 'replenish_stock',
+          requiresHumanApproval: true
+        };
+      } else if (metric === 'service_liveness_probe' || metric === 'up') {
+        remediation = {
+          title: `Restart Container Lifecycle for ${rootCauseCandidate}`,
+          description: `Microservice process unreachable in Prometheus. Trigger container restart and verify health probe.`,
+          command: `POST /api/remediate { service: "${rootCauseCandidate}", action: "restart_container" }`,
+          actionType: 'restart_container',
+          requiresHumanApproval: true
+        };
+      }
+    }
+
     return {
       incidentSummary: `Service impairment detected originating in ${rootCauseCandidate}. Telemetry shows: ${primaryAnomaly ? primaryAnomaly.description : anomalyDescriptions || 'unresponsive service endpoint'}.`,
       severity: overallSeverity,
@@ -168,13 +238,7 @@ Output raw JSON only. Do not wrap in markdown tags.
         guidanceSummary: matchedRunbook ? `${matchedRunbook.sectionTitle}: ${matchedRunbook.text.substring(0, 180)}...` : 'Inspect host process status and verify network connectivity.'
       },
       timeline: structuredTimeline,
-      remediation: {
-        title: `Restart and Healthcheck ${rootCauseCandidate}`,
-        description: `Verify container or process lifecycle for ${rootCauseCandidate}, check host resource headroom, and verify socket connectivity.`,
-        command: `POST /api/remediate { service: "${rootCauseCandidate}", action: "restart" }`,
-        actionType: 'restart',
-        requiresHumanApproval: true
-      },
+      remediation,
       provider: 'Topological Causal Engine (Deterministic)',
       diagnosticNote: diagnosticNote ? `AI LLM Note: ${diagnosticNote}` : null
     };

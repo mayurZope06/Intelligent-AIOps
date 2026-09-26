@@ -1,0 +1,17 @@
+{
+  "name": "auth-service",
+  "version": "1.0.0",
+  "description": "Production-oriented Auth & IAM Microservice for Intelligent AIOps Platform",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "prom-client": "^15.1.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "private": true
+}

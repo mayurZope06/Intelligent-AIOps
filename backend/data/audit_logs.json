@@ -1,6 +1,88 @@
 [
   {
     "incidentId": "INC-4130",
+    "action": "replenish_stock",
+    "approvedBy": "DevOps Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "verified": true,
+    "timestamp": "2026-09-26T06:33:43.313Z"
+  },
+  {
+    "incidentId": "INC-9046",
+    "action": "flush_cache",
+    "approvedBy": "DevOps Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "verified": true,
+    "timestamp": "2026-09-26T06:33:40.126Z"
+  },
+  {
+    "incidentId": "INC-8445",
+    "action": "reset_fault",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "verified": true,
+    "timestamp": "2026-09-26T06:18:27.111Z"
+  },
+  {
+    "incidentId": "INC-5611",
+    "action": "noop_action",
+    "approvedBy": "Test Operator",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "verified": true,
+    "timestamp": "2026-09-25T20:42:13.514Z"
+  },
+  {
+    "incidentId": "INC-2949",
+    "action": "restart_connection_pool",
+    "approvedBy": "SRE Automation",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "verified": true,
+    "timestamp": "2026-09-25T20:41:47.376Z"
+  },
+  {
+    "incidentId": "INC-9827",
+    "action": "restart",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "timestamp": "2026-09-25T20:40:11.744Z"
+  },
+  {
+    "incidentId": "INC-9827",
+    "action": "restart",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "timestamp": "2026-09-25T20:32:53.608Z"
+  },
+  {
+    "incidentId": "INC-9827",
+    "action": "restart",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "timestamp": "2026-09-25T20:32:24.512Z"
+  },
+  {
+    "incidentId": "INC-9827",
+    "action": "restart",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "timestamp": "2026-09-25T20:32:09.999Z"
+  },
+  {
+    "incidentId": "INC-9827",
+    "action": "restart",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "timestamp": "2026-09-25T20:31:51.299Z"
+  },
+  {
+    "incidentId": "INC-4807",
+    "action": "restart",
+    "approvedBy": "DevOps SRE Lead",
+    "result": "REMEDIATED_AND_RECOVERED",
+    "timestamp": "2026-09-24T05:21:32.159Z"
+  },
+  {
+    "incidentId": "INC-4130",
     "action": "restart",
     "approvedBy": "DevOps SRE Lead",
     "result": "REMEDIATED_AND_RECOVERED",

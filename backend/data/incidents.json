@@ -1,5 +1,649 @@
 [
   {
+    "id": "INC-8264",
+    "title": "API Gateway 502 Outage in gateway-service",
+    "description": "Automated detection from real Prometheus metrics: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.",
+    "service": "gateway-service",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-26T06:56:29.788Z",
+    "resolvedAt": null,
+    "resolutionDurationSeconds": null,
+    "resolutionNotes": "",
+    "notes": [],
+    "analysis": null,
+    "anomalies": [
+      {
+        "service": "gateway-service",
+        "metric": "gateway_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP."
+      }
+    ],
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-9290",
+    "title": "API Gateway 502 Outage in gateway-service",
+    "description": "Automated detection from real Prometheus metrics: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.",
+    "service": "gateway-service",
+    "severity": "CRITICAL",
+    "status": "RESOLVED",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-26T06:51:34.793Z",
+    "resolvedAt": "2026-09-26T06:51:47.179Z",
+    "resolutionDurationSeconds": 12,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
+    "notes": [],
+    "analysis": null,
+    "anomalies": [
+      {
+        "service": "gateway-service",
+        "metric": "gateway_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP."
+      }
+    ],
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-9195",
+    "title": "Database Connection Pool Exhaustion in payment-service",
+    "description": "Automated detection from real Prometheus metrics: Connection pool exhausted: 98/100 sockets utilized.",
+    "service": "payment-service",
+    "severity": "CRITICAL",
+    "status": "RESOLVED",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-26T06:48:09.639Z",
+    "resolvedAt": "2026-09-26T06:51:47.188Z",
+    "resolutionDurationSeconds": 218,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
+    "notes": [],
+    "analysis": null,
+    "anomalies": [
+      {
+        "service": "payment-service",
+        "metric": "payment_active_connections",
+        "value": 98,
+        "threshold": 90,
+        "severity": "CRITICAL",
+        "description": "Connection pool exhausted: 98/100 sockets utilized."
+      }
+    ],
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-9819",
+    "title": "Order Circuit Breaker Trip in order-service",
+    "description": "Automated detection from real Prometheus metrics: Order service fault injection active {instance=\"order-service:4001\", mode=\"order_deadlock\"}. Matching operational SOP.",
+    "service": "order-service",
+    "severity": "CRITICAL",
+    "status": "RESOLVED",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-26T06:46:58.894Z",
+    "resolvedAt": "2026-09-26T06:51:47.193Z",
+    "resolutionDurationSeconds": 288,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
+    "notes": [],
+    "analysis": null,
+    "anomalies": [
+      {
+        "service": "order-service",
+        "metric": "order_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Order service fault injection active {instance=\"order-service:4001\", mode=\"order_deadlock\"}. Matching operational SOP."
+      }
+    ],
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-2702",
+    "title": "API Gateway 502 Outage in gateway-service",
+    "description": "Automated detection from real Prometheus metrics: API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP.",
+    "service": "gateway-service",
+    "severity": "CRITICAL",
+    "status": "RESOLVED",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-26T06:43:48.204Z",
+    "resolvedAt": "2026-09-26T06:43:55.510Z",
+    "resolutionDurationSeconds": 7,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
+    "notes": [],
+    "analysis": null,
+    "anomalies": [
+      {
+        "service": "gateway-service",
+        "metric": "gateway_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "API Gateway fault injection active {instance=\"gateway-service:4000\", mode=\"gateway_outage\"}. Matching operational SOP."
+      }
+    ],
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-3400",
+    "title": "High CPU & Event Loop Saturation in payment-service",
+    "description": "Automated detection from real Prometheus metrics: Payment service fault injection active {instance=\"payment-service:4002\", mode=\"high_cpu\"}. Matching operational SOP.",
+    "service": "payment-service",
+    "severity": "CRITICAL",
+    "status": "RESOLVED",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-26T06:38:42.193Z",
+    "resolvedAt": "2026-09-26T06:43:55.574Z",
+    "resolutionDurationSeconds": 313,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
+    "notes": [],
+    "analysis": null,
+    "anomalies": [
+      {
+        "service": "payment-service",
+        "metric": "payment_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Payment service fault injection active {instance=\"payment-service:4002\", mode=\"high_cpu\"}. Matching operational SOP."
+      }
+    ],
+    "remediationAudit": null
+  },
+  {
+    "id": "INC-9046",
+    "title": "Auth Token Storm & 401 Burst in auth-service",
+    "description": "Automated detection from real Prometheus metrics: Auth service fault injection active {instance=\"auth-service:4003\", mode=\"auth_storm\"}. Matching operational SOP.",
+    "service": "auth-service",
+    "severity": "CRITICAL",
+    "status": "RESOLVED",
+    "trigger": "MANUAL",
+    "createdAt": "2026-09-26T06:33:38.525Z",
+    "resolvedAt": "2026-09-26T06:33:40.122Z",
+    "resolutionDurationSeconds": 5,
+    "resolutionNotes": "Remediation 'flush_cache' executed via auth-service API hook (/api/remediate) and VERIFIED by Prometheus telemetry. auth-service is HEALTHY with 0 active anomalies.",
+    "notes": [],
+    "analysis": null,
+    "anomalies": [
+      {
+        "service": "auth-service",
+        "metric": "auth_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Auth service fault injection active {instance=\"auth-service:4003\", mode=\"auth_storm\"}. Matching operational SOP."
+      }
+    ],
+    "remediationAudit": {
+      "incidentId": "INC-9046",
+      "action": "flush_cache",
+      "approvedBy": "DevOps Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "verified": true,
+      "timestamp": "2026-09-26T06:33:40.126Z"
+    }
+  },
+  {
+    "id": "INC-8445",
+    "title": "Service payment-service is the deepest dependency exhibiting failure in the...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "RESOLVED",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-26T06:18:21.884Z",
+    "resolvedAt": "2026-09-26T06:18:27.119Z",
+    "resolutionDurationSeconds": 5,
+    "resolutionNotes": "Remediation 'reset_fault' executed via payment API hook (/api/remediate) and VERIFIED by Prometheus telemetry. payment-service is HEALTHY with 0 active anomalies.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in payment-service. Telemetry shows: Payment service fault injection active {instance=\"payment-service:4002\", mode=\"inventory_lock\"}. Matching operational SOP..",
+      "severity": "P1-Critical",
+      "probableRootCause": "Service payment-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Payment service fault injection active {instance=\"payment-service:4002\", mode=\"inventory_lock\"}. Matching operational SOP..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified payment-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [],
+        "impact": "Direct service degradation on payment-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Metric] payment-service: payment_failure_mode = 1 (Payment service fault injection active {instance=\"payment-service:4002\", mode=\"inventory_lock\"}. Matching operational SOP.)",
+        "[Log] payment-service: \"[payment-service] ConnectionPoolTimeoutException: Timeout waiting for connection from pool of 100 max connections.\""
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Database Connection Pool Exhaustion",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-01): ## Immediate Remediation Steps (SOP-01)\r\n1. **Drain & Reset Connection Pool**: Flush zombie sockets on `payment-service` by triggering the pool reset hook:\r\n   - Command: `POST /ap..."
+      },
+      "timeline": [
+        {
+          "time": "2:12:24 am",
+          "service": "payment-service",
+          "event": "[payment-service] ConnectionPoolTimeoutException: Timeout waiting for connection from pool of 100 max connections.",
+          "type": "origin"
+        },
+        {
+          "time": "11:48:21 am",
+          "service": "payment-service",
+          "event": "Payment service fault injection active {instance=\"payment-service:4002\", mode=\"inventory_lock\"}. Matching operational SOP.",
+          "type": "origin"
+        }
+      ],
+      "remediation": {
+        "title": "Clear Fault Injection & Reset Payment Service",
+        "description": "Reset active failure simulation state and restore healthy transaction processing.",
+        "command": "POST /api/remediate { service: \"payment-service\", action: \"reset_fault\" }",
+        "actionType": "reset_fault",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "anomalies": [
+      {
+        "service": "payment-service",
+        "metric": "payment_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Payment service fault injection active {instance=\"payment-service:4002\", mode=\"inventory_lock\"}. Matching operational SOP."
+      }
+    ],
+    "remediationAudit": {
+      "incidentId": "INC-8445",
+      "action": "reset_fault",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "verified": true,
+      "timestamp": "2026-09-26T06:18:27.111Z"
+    }
+  },
+  {
+    "id": "INC-5611",
+    "title": "Service payment-service is the deepest dependency exhibiting failure in the...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "RESOLVED",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-25T20:42:10.424Z",
+    "resolvedAt": "2026-09-25T20:42:13.516Z",
+    "resolutionDurationSeconds": 5,
+    "resolutionNotes": "Remediation 'noop_action' executed via payment API hook (/api/remediate) and VERIFIED by Prometheus telemetry. payment-service is HEALTHY with 0 active anomalies.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in payment-service. Telemetry shows: Connection pool exhausted: 98/100 sockets utilized..",
+      "severity": "P1-Critical",
+      "probableRootCause": "Service payment-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Connection pool exhausted: 98/100 sockets utilized..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified payment-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [],
+        "impact": "Direct service degradation on payment-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Metric] payment-service: payment_active_connections = 98 (Connection pool exhausted: 98/100 sockets utilized.)",
+        "[Metric] payment-service: payment_failure_mode = 1 (Payment service fault injection active {instance=\"payment-service:4002\", mode=\"db_overload\"}. Matching operational SOP.)"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Database Connection Pool Exhaustion",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-01): ## Immediate Remediation Steps (SOP-01)\r\n1. **Drain & Reset Connection Pool**: Flush zombie sockets on `payment-service` by triggering the pool reset hook:\r\n   - Command: `POST /ap..."
+      },
+      "timeline": [
+        {
+          "time": "2:12:10 am",
+          "service": "payment-service",
+          "event": "Connection pool exhausted: 98/100 sockets utilized.",
+          "type": "origin"
+        },
+        {
+          "time": "2:12:10 am",
+          "service": "payment-service",
+          "event": "Payment service fault injection active {instance=\"payment-service:4002\", mode=\"db_overload\"}. Matching operational SOP.",
+          "type": "origin"
+        }
+      ],
+      "remediation": {
+        "title": "Drain & Reset Payment Connection Pool (SOP-01)",
+        "description": "Flush exhausted sockets on payment-service, drain connection pool, and restore baseline headroom.",
+        "command": "POST /api/remediate { service: \"payment-service\", action: \"restart_connection_pool\" }",
+        "actionType": "restart_connection_pool",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "anomalies": [
+      {
+        "service": "payment-service",
+        "metric": "payment_active_connections",
+        "value": 98,
+        "threshold": 90,
+        "severity": "CRITICAL",
+        "description": "Connection pool exhausted: 98/100 sockets utilized."
+      },
+      {
+        "service": "payment-service",
+        "metric": "payment_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Payment service fault injection active {instance=\"payment-service:4002\", mode=\"db_overload\"}. Matching operational SOP."
+      }
+    ],
+    "remediationAudit": {
+      "incidentId": "INC-5611",
+      "action": "noop_action",
+      "approvedBy": "Test Operator",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "verified": true,
+      "timestamp": "2026-09-25T20:42:13.514Z"
+    }
+  },
+  {
+    "id": "INC-2949",
+    "title": "Service payment-service is the deepest dependency exhibiting failure in the...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "RESOLVED",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-25T20:41:44.262Z",
+    "resolvedAt": "2026-09-25T20:41:47.378Z",
+    "resolutionDurationSeconds": 5,
+    "resolutionNotes": "Remediation 'restart_connection_pool' executed via payment API hook (/api/remediate) and VERIFIED by Prometheus telemetry. payment-service is HEALTHY with 0 active anomalies.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in payment-service. Telemetry shows: Connection pool exhausted: 98/100 sockets utilized..",
+      "severity": "P1-Critical",
+      "probableRootCause": "Service payment-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Connection pool exhausted: 98/100 sockets utilized..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified payment-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [],
+        "impact": "Direct service degradation on payment-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Metric] payment-service: payment_active_connections = 98 (Connection pool exhausted: 98/100 sockets utilized.)",
+        "[Metric] payment-service: payment_failure_mode = 1 (Payment service fault injection active {instance=\"payment-service:4002\", mode=\"db_overload\"}. Matching operational SOP.)"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Database Connection Pool Exhaustion",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-01): ## Immediate Remediation Steps (SOP-01)\r\n1. **Drain & Reset Connection Pool**: Flush zombie sockets on `payment-service` by triggering the pool reset hook:\r\n   - Command: `POST /ap..."
+      },
+      "timeline": [
+        {
+          "time": "2:11:43 am",
+          "service": "payment-service",
+          "event": "Connection pool exhausted: 98/100 sockets utilized.",
+          "type": "origin"
+        },
+        {
+          "time": "2:11:43 am",
+          "service": "payment-service",
+          "event": "Payment service fault injection active {instance=\"payment-service:4002\", mode=\"db_overload\"}. Matching operational SOP.",
+          "type": "origin"
+        }
+      ],
+      "remediation": {
+        "title": "Drain & Reset Payment Connection Pool (SOP-01)",
+        "description": "Flush exhausted sockets on payment-service, drain connection pool, and restore baseline headroom.",
+        "command": "POST /api/remediate { service: \"payment-service\", action: \"restart_connection_pool\" }",
+        "actionType": "restart_connection_pool",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "anomalies": [
+      {
+        "service": "payment-service",
+        "metric": "payment_active_connections",
+        "value": 98,
+        "threshold": 90,
+        "severity": "CRITICAL",
+        "description": "Connection pool exhausted: 98/100 sockets utilized."
+      },
+      {
+        "service": "payment-service",
+        "metric": "payment_failure_mode",
+        "value": 1,
+        "threshold": 0,
+        "severity": "CRITICAL",
+        "description": "Payment service fault injection active {instance=\"payment-service:4002\", mode=\"db_overload\"}. Matching operational SOP."
+      }
+    ],
+    "remediationAudit": {
+      "incidentId": "INC-2949",
+      "action": "restart_connection_pool",
+      "approvedBy": "SRE Automation",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "verified": true,
+      "timestamp": "2026-09-25T20:41:47.376Z"
+    }
+  },
+  {
+    "id": "INC-9827",
+    "title": "Service payment-service is the deepest dependency exhibiting failure in the...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "payment-service",
+    "severity": "P1-Critical",
+    "status": "RESOLVED",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-25T20:31:43.470Z",
+    "resolvedAt": "2026-09-25T20:31:51.324Z",
+    "resolutionDurationSeconds": 8,
+    "resolutionNotes": "Remediation action 'restart' approved by DevOps SRE Lead and executed successfully.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in payment-service. Telemetry shows: Database transaction write errors observed: 1 queries rejected..",
+      "severity": "P1-Critical",
+      "probableRootCause": "Service payment-service is the deepest dependency exhibiting failure in the call chain. Active anomaly: Database transaction write errors observed: 1 queries rejected..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified payment-service as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "payment-service",
+        "cascading": [
+          "order-service",
+          "gateway-service",
+          "inventory-service"
+        ],
+        "impact": "Cascading failure propagating to upstream services: order-service, gateway-service, inventory-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Metric] payment-service: payment_db_errors_total = 1 (Database transaction write errors observed: 1 queries rejected.)",
+        "[Metric] order-service: order_downstream_payment_errors_total = 1 (Downstream payment service failures: 1 order checkouts failed.)",
+        "[Metric] gateway-service: gateway_checkout_errors_total = 2 (Gateway customer checkout errors: 2 5xx errors propagated.)",
+        "[Metric] inventory-service: inventory_failures_total = 1 (Inventory reservation/stock failures: 1 operations rejected.)"
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Distributed Inventory Lock Deadlock",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-06): ## Immediate Remediation Steps (SOP-06)\n1. **Kill Hanging Lock Queries & Reset Allocation Queue**:\n   - Terminate active deadlocked database queries and reset inventory reservation..."
+      },
+      "timeline": [
+        {
+          "time": "2:01:42 am",
+          "service": "payment-service",
+          "event": "Database transaction write errors observed: 1 queries rejected.",
+          "type": "origin"
+        },
+        {
+          "time": "2:01:42 am",
+          "service": "order-service",
+          "event": "Downstream payment service failures: 1 order checkouts failed.",
+          "type": "cascade"
+        },
+        {
+          "time": "2:01:42 am",
+          "service": "gateway-service",
+          "event": "Gateway customer checkout errors: 2 5xx errors propagated.",
+          "type": "cascade"
+        },
+        {
+          "time": "2:01:42 am",
+          "service": "inventory-service",
+          "event": "Inventory reservation/stock failures: 1 operations rejected.",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart and Healthcheck payment-service",
+        "description": "Verify container or process lifecycle for payment-service, check host resource headroom, and verify socket connectivity.",
+        "command": "POST /api/remediate { service: \"payment-service\", action: \"restart\" }",
+        "actionType": "restart",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "remediationAudit": {
+      "incidentId": "INC-9827",
+      "action": "restart",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "timestamp": "2026-09-25T20:40:11.744Z"
+    }
+  },
+  {
+    "id": "INC-4807",
+    "title": "Service database is the deepest dependency exhibiting failure in the call c...",
+    "description": "Automated incident generated from cross-source telemetry correlation.",
+    "service": "database",
+    "severity": "P1-Critical",
+    "status": "RESOLVED",
+    "trigger": "AUTOMATED_CORRELATION",
+    "createdAt": "2026-09-24T05:21:25.648Z",
+    "resolvedAt": "2026-09-24T05:21:32.165Z",
+    "resolutionDurationSeconds": 7,
+    "resolutionNotes": "Remediation action 'restart' approved by DevOps SRE Lead and executed successfully.",
+    "notes": [],
+    "analysis": {
+      "incidentSummary": "Service impairment detected originating in database. Telemetry shows: MongoDB primary connection pool saturated: 100/100 sockets utilized..",
+      "severity": "P1-Critical",
+      "probableRootCause": "Service database is the deepest dependency exhibiting failure in the call chain. Active anomaly: MongoDB primary connection pool saturated: 100/100 sockets utilized..",
+      "confidence": 88,
+      "confidenceReasoning": "Topological graph traversal identified database as upstream causal origin based on service dependency depth and failure propagation order.",
+      "affectedServices": {
+        "root": "database",
+        "cascading": [
+          "payment-service",
+          "inventory-service",
+          "order-service",
+          "gateway-service"
+        ],
+        "impact": "Cascading failure propagating to upstream services: payment-service, inventory-service, order-service, gateway-service"
+      },
+      "alternativeCauses": [
+        "Transient network connectivity or DNS resolution failure",
+        "Downstream infrastructure dependency or host resource exhaustion"
+      ],
+      "supportingEvidence": [
+        "[Metric] database: mongo_connection_pool_active = 100 (MongoDB primary connection pool saturated: 100/100 sockets utilized.)",
+        "[Metric] payment-service: payment_active_connections = 98 (MongoDB connection pool exhausted: 98/100 sockets utilized.)",
+        "[Metric] payment-service: payment_db_errors_total = 24 (Database transaction write errors: 24 socket connection timeouts.)",
+        "[Metric] inventory-service: inventory_db_query_latency_ms = 1850 (Stock queries blocked waiting for MongoDB connection slot.)",
+        "[Metric] order-service: order_downstream_payment_errors_total = 35 (Cascading downstream payment service timeouts: 35 orders blocked.)",
+        "[Metric] gateway-service: gateway_checkout_errors_total = 35 (HTTP 502 Bad Gateway customer checkout errors propagated to client.)",
+        "[Log] database: \"[database] MongoServerSelectionError: Max pool connection limit reached (100/100). Sockets saturated.\"",
+        "[Log] payment-service: \"[payment-service] ConnectionPoolTimeoutException: Timeout waiting for connection from pool of 100 max connections.\"",
+        "[Log] gateway-service: \"[gateway-service] HTTP 502 Bad Gateway: downstream order-service checkout timed out.\""
+      ],
+      "retrievedKnowledge": {
+        "runbookTitle": "Standard Operating Procedure: Database Connection Pool Exhaustion",
+        "guidanceSummary": "Immediate Remediation Steps (SOP-01): ## Immediate Remediation Steps (SOP-01)\r\n1. **Drain & Reset Connection Pool**: Flush zombie sockets on `payment-service` by triggering the pool reset hook:\r\n   - Command: `POST /ap..."
+      },
+      "timeline": [
+        {
+          "time": "10:51:18 am",
+          "service": "database",
+          "event": "[database] MongoServerSelectionError: Max pool connection limit reached (100/100). Sockets saturated.",
+          "type": "origin"
+        },
+        {
+          "time": "10:51:18 am",
+          "service": "payment-service",
+          "event": "[payment-service] ConnectionPoolTimeoutException: Timeout waiting for connection from pool of 100 max connections.",
+          "type": "cascade"
+        },
+        {
+          "time": "10:51:18 am",
+          "service": "gateway-service",
+          "event": "[gateway-service] HTTP 502 Bad Gateway: downstream order-service checkout timed out.",
+          "type": "cascade"
+        },
+        {
+          "time": "10:51:25 am",
+          "service": "database",
+          "event": "MongoDB primary connection pool saturated: 100/100 sockets utilized.",
+          "type": "origin"
+        },
+        {
+          "time": "10:51:25 am",
+          "service": "payment-service",
+          "event": "MongoDB connection pool exhausted: 98/100 sockets utilized.",
+          "type": "cascade"
+        },
+        {
+          "time": "10:51:25 am",
+          "service": "payment-service",
+          "event": "Database transaction write errors: 24 socket connection timeouts.",
+          "type": "cascade"
+        },
+        {
+          "time": "10:51:25 am",
+          "service": "inventory-service",
+          "event": "Stock queries blocked waiting for MongoDB connection slot.",
+          "type": "cascade"
+        },
+        {
+          "time": "10:51:25 am",
+          "service": "order-service",
+          "event": "Cascading downstream payment service timeouts: 35 orders blocked.",
+          "type": "cascade"
+        }
+      ],
+      "remediation": {
+        "title": "Restart and Healthcheck database",
+        "description": "Verify container or process lifecycle for database, check host resource headroom, and verify socket connectivity.",
+        "command": "POST /api/remediate { service: \"database\", action: \"restart\" }",
+        "actionType": "restart",
+        "requiresHumanApproval": true
+      },
+      "provider": "Topological Causal Engine (Deterministic)",
+      "diagnosticNote": "AI LLM Note: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent: [400 Bad Request] API key not valid. Please pass a valid API key. [{\"@type\":\"type.googleapis.com/google.rpc.ErrorInfo\",\"reason\":\"API_KEY_INVALID\",\"domain\":\"googleapis.com\",\"metadata\":{\"service\":\"generativelanguage.googleapis.com\"}},{\"@type\":\"type.googleapis.com/google.rpc.LocalizedMessage\",\"locale\":\"en-US\",\"message\":\"API key not valid. Please pass a valid API key.\"}]"
+    },
+    "remediationAudit": {
+      "incidentId": "INC-4807",
+      "action": "restart",
+      "approvedBy": "DevOps SRE Lead",
+      "result": "REMEDIATED_AND_RECOVERED",
+      "timestamp": "2026-09-24T05:21:32.159Z"
+    }
+  },
+  {
     "id": "INC-9200",
     "title": "Service payment-service is the deepest dependency exhibiting failure in the...",
     "description": "Automated incident generated from cross-source telemetry correlation.",
@@ -224,12 +868,12 @@
     "description": "Automated incident generated from cross-source telemetry correlation.",
     "service": "inventory-service",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "AUTOMATED_CORRELATION",
     "createdAt": "2026-09-23T18:59:57.570Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "Remediation action 'restart' approved by DevOps SRE Lead and executed successfully.",
+    "resolvedAt": "2026-09-26T06:33:43.311Z",
+    "resolutionDurationSeconds": 214426,
+    "resolutionNotes": "Remediation 'replenish_stock' executed via inventory-service API hook (/api/remediate) and VERIFIED by Prometheus telemetry. inventory-service is HEALTHY with 0 active anomalies.",
     "notes": [],
     "analysis": {
       "incidentSummary": "Service impairment detected originating in inventory-service. Telemetry shows: Service inventory-service is the deepest dependency exhibiting failure in t....",
@@ -277,10 +921,11 @@
     },
     "remediationAudit": {
       "incidentId": "INC-4130",
-      "action": "restart",
-      "approvedBy": "DevOps SRE Lead",
+      "action": "replenish_stock",
+      "approvedBy": "DevOps Lead",
       "result": "REMEDIATED_AND_RECOVERED",
-      "timestamp": "2026-09-23T19:17:30.624Z"
+      "verified": true,
+      "timestamp": "2026-09-26T06:33:43.313Z"
     }
   },
   {
@@ -289,12 +934,12 @@
     "description": "Automated incident generated from cross-source telemetry correlation.",
     "service": "cache-redis",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "AUTOMATED_CORRELATION",
     "createdAt": "2026-09-23T18:59:52.580Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolvedAt": "2026-09-26T06:33:44.889Z",
+    "resolutionDurationSeconds": 214432,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
     "notes": [],
     "analysis": {
       "incidentSummary": "Service impairment detected originating in cache-redis. Telemetry shows: Redis memory exhaustion (98%) and eviction storm (>4500 keys/sec dropped)..",
@@ -375,12 +1020,12 @@
     "description": "Automated incident generated from cross-source telemetry correlation.",
     "service": "payment-service",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "AUTOMATED_CORRELATION",
     "createdAt": "2026-09-23T18:16:46.245Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolvedAt": "2026-09-26T06:33:44.893Z",
+    "resolutionDurationSeconds": 217019,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
     "notes": [],
     "analysis": {
       "incidentSummary": "A total outage has occurred across multiple core microservices in the cluster, with gateway-service, order-service, and payment-service all returning liveness probe failures and connection refused errors simultaneously.",
@@ -447,12 +1092,12 @@
     "description": "Automated incident generated from cross-source telemetry correlation.",
     "service": "payment-service",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "AUTOMATED_CORRELATION",
     "createdAt": "2026-09-23T18:10:30.967Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolvedAt": "2026-09-26T06:33:44.896Z",
+    "resolutionDurationSeconds": 217394,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
     "notes": [],
     "analysis": {
       "incidentSummary": "A total service outage has occurred affecting gateway-service, order-service, and payment-service, resulting in all three microservices becoming unreachable and failing liveness probes simultaneously.",
@@ -519,12 +1164,12 @@
     "description": "ADfowjoapdjf",
     "service": "database",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "MANUAL",
     "createdAt": "2026-09-23T17:31:32.702Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolvedAt": "2026-09-26T06:33:44.899Z",
+    "resolutionDurationSeconds": 219732,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
     "notes": [],
     "analysis": null,
     "remediationAudit": null
@@ -535,12 +1180,12 @@
     "description": "Automated incident generated from cross-source telemetry correlation.",
     "service": "payment-service",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "AUTOMATED_CORRELATION",
     "createdAt": "2026-09-23T17:10:04.426Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolvedAt": "2026-09-26T06:33:44.903Z",
+    "resolutionDurationSeconds": 221020,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
     "notes": [],
     "analysis": {
       "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
@@ -606,12 +1251,12 @@
     "description": "Automated incident generated from cross-source telemetry correlation.",
     "service": "payment-service",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "AUTOMATED_CORRELATION",
     "createdAt": "2026-09-23T17:09:41.060Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "Remediation action 'restart_container' approved by DevOps SRE Lead and executed successfully.",
+    "resolvedAt": "2026-09-26T06:33:44.908Z",
+    "resolutionDurationSeconds": 221044,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
     "notes": [],
     "analysis": {
       "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
@@ -683,12 +1328,12 @@
     "description": "Caught in Red light area ( BUdhwarePeth )",
     "service": "payment-service",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "MANUAL",
     "createdAt": "2026-09-23T17:08:05.435Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolvedAt": "2026-09-26T06:33:44.912Z",
+    "resolutionDurationSeconds": 221139,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
     "notes": [
       {
         "id": "note-1790183314062",
@@ -712,12 +1357,12 @@
     "description": "Automated incident generated from cross-source telemetry correlation.",
     "service": "payment-service",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "AUTOMATED_CORRELATION",
     "createdAt": "2026-09-23T16:58:34.218Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolvedAt": "2026-09-26T06:33:44.914Z",
+    "resolutionDurationSeconds": 221711,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
     "notes": [],
     "analysis": {
       "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
@@ -783,12 +1428,12 @@
     "description": "Automated incident generated from cross-source telemetry correlation.",
     "service": "payment-service",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "AUTOMATED_CORRELATION",
     "createdAt": "2026-09-23T16:55:17.165Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolvedAt": "2026-09-26T06:33:44.917Z",
+    "resolutionDurationSeconds": 221908,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
     "notes": [],
     "analysis": {
       "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
@@ -854,12 +1499,12 @@
     "description": "Automated incident generated from cross-source telemetry correlation.",
     "service": "payment-service",
     "severity": "P1-Critical",
-    "status": "OPEN",
+    "status": "RESOLVED",
     "trigger": "AUTOMATED_CORRELATION",
     "createdAt": "2026-09-23T16:53:40.269Z",
-    "resolvedAt": null,
-    "resolutionDurationSeconds": null,
-    "resolutionNotes": "",
+    "resolvedAt": "2026-09-26T06:33:44.922Z",
+    "resolutionDurationSeconds": 222005,
+    "resolutionNotes": "Fault injections cleared and cluster telemetry verified healthy by Prometheus.",
     "notes": [],
     "analysis": {
       "incidentSummary": "Container crash loop in payment-service with fatal SIGSEGV unhandled exception, dropping inter-service communication.",
