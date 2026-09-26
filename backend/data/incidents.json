@@ -655,7 +655,7 @@
     "resolvedAt": "2026-09-23T19:15:00.824Z",
     "resolutionDurationSeconds": 7,
     "resolutionNotes": "Remediation action 'restart' approved by DevOps SRE Lead and executed successfully.",
-    "notes": [],
+    "notes": [], 
     "analysis": {
       "incidentSummary": "Service impairment detected originating in payment-service. Telemetry shows: Payment service worker process unresponsive / thread pool deadlock..",
       "severity": "P1-Critical",

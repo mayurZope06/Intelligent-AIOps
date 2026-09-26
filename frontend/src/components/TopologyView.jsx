@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; 
 import ReactFlow, { Background, Controls, MarkerType, Handle, Position } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Server, Database, Layers, X, ExternalLink, ShieldAlert, CheckCircle2, Cpu, Globe, KeyRound, Bell } from 'lucide-react';
 
-// Custom Apple-style Squircle Node
+// Custom Apple-style Squircle Node node
 const AppleServiceNode = ({ data, selected }) => {
   const status = (data.status || 'HEALTHY').toUpperCase();
   const getNodeIcon = () => {

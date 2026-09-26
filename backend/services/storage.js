@@ -11,7 +11,7 @@ class Storage {
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
-  }
+  } 
 
   getFilePath(filename) {
     return path.join(this.dataDir, filename);
