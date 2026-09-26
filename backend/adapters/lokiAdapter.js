@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-class LokiAdapter {
+class LokiAdapter { 
   constructor() {
     this.lokiUrl = process.env.LOKI_URL || 'http://localhost:3100';
     // Circular buffer for 500 most recent logs
