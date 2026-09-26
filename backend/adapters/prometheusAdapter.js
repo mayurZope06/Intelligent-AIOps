@@ -17,17 +17,31 @@ class PrometheusAdapter {
 
   setSimulationScenario(scenario) {
     this.activeScenario = scenario || 'none';
-    logger.info(`Telemetry test scenario updated to: ${this.activeScenario}`);
+    logger.info(`Telemetry scenario updated to: ${this.activeScenario}`);
 
-    // If an operator chooses a chaos scenario, dispatch the fault injection
-    // directly to the physical service so real metric counters and gauges react in Prometheus.
-    const paymentUrl = process.env.PAYMENT_URL || 'http://localhost:4002';
+    const SERVICE_MAP = {
+      'gateway_outage': { port: 4000, mode: 'gateway_outage' },
+      'cache_stampede': { port: 4000, mode: 'cache_stampede' },
+      'order_deadlock': { port: 4001, mode: 'order_deadlock' },
+      'high_cpu': { port: 4002, mode: 'high_cpu' },
+      'payment_gateway_down': { port: 4002, mode: 'payment_gateway_down' },
+      'downstream_failure': { port: 4002, mode: 'downstream_failure' },
+      'db_overload': { port: 4002, mode: 'db_overload' },
+      'auth_storm': { port: 4003, mode: 'auth_storm' },
+      'inventory_lock': { port: 4004, mode: 'inventory_lock' }
+    };
+
     if (this.activeScenario === 'none' || this.activeScenario === 'reset') {
-      axios.post(`${paymentUrl}/api/simulate-failure`, { mode: 'reset', fail: false }, { timeout: 1500 })
-        .catch(err => logger.debug(`Could not dispatch reset to payment-service: ${err.message}`));
+      [4000, 4001, 4002, 4003, 4004].forEach(p => {
+        axios.post(`http://localhost:${p}/api/simulate-failure`, { mode: 'reset', fail: false }, { timeout: 1500 })
+          .catch(err => logger.debug(`Reset dispatch to port ${p}: ${err.message}`));
+      });
     } else {
-      axios.post(`${paymentUrl}/api/simulate-failure`, { mode: this.activeScenario, fail: true }, { timeout: 1500 })
-        .catch(err => logger.debug(`Could not dispatch failure simulation to payment-service: ${err.message}`));
+      const target = SERVICE_MAP[this.activeScenario];
+      if (target) {
+        axios.post(`http://localhost:${target.port}/api/simulate-failure`, { mode: target.mode, fail: true }, { timeout: 1500 })
+          .catch(err => logger.debug(`Failure dispatch to port ${target.port}: ${err.message}`));
+      }
     }
   }
 
@@ -272,7 +286,7 @@ class PrometheusAdapter {
     const paymentActiveConns = getMetricFirst('payment-service', 'payment_active_connections');
 
     // --- DATABASE (MongoDB Cluster) ---
-    const isDbOverload = this.activeScenario === 'db_overload' || paymentDbErrors > 0 || (paymentActiveConns !== null && paymentActiveConns >= 90);
+    const isDbOverload = paymentDbErrors > 0 || (paymentActiveConns !== null && paymentActiveConns >= 90);
     if (isDbOverload) {
       results.anomalies.push({
         service: 'database',

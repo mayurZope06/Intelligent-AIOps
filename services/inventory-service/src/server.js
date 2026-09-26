@@ -199,6 +199,29 @@ app.post('/api/inventory/reserve', (req, res) => {
   const startTime = process.hrtime();
   const { productId, quantity } = req.body;
 
+  // Active Failure Mode Execution (Real Inventory Deadlock & Stock Depletion)
+  if (failureState.active) {
+    const elapsed = process.hrtime(startTime);
+    const duration = elapsed[0] + elapsed[1] / 1e9;
+
+    inventoryRequestsTotal.inc({ route: '/api/inventory/reserve', method: 'POST', status_code: '503' });
+    inventoryFailuresTotal.inc({ reason: 'inventory_deadlock', product_id: productId || 'catalog' });
+    inventoryRequestDurationSeconds.observe({ route: '/api/inventory/reserve', status_code: '503' }, duration);
+
+    logger.error('Reserve inventory failed: Deadlock and stock depletion active', {
+      failureMode: failureState.mode,
+      productId,
+      quantity
+    });
+
+    return res.status(503).json({
+      success: false,
+      error: 'InventoryDeadlockException: Database lock contention and allocation deadlock. Stock depleted.',
+      statusCode: 503,
+      failureMode: failureState.mode
+    });
+  }
+
   // Validation: non-empty productId and positive integer quantity
   if (!productId || typeof productId !== 'string' || quantity === undefined || typeof quantity !== 'number' || quantity <= 0 || !Number.isInteger(quantity)) {
     const elapsed = process.hrtime(startTime);

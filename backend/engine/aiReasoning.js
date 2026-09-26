@@ -5,7 +5,7 @@ const logger = require('../utils/logger')('AIReasoning');
 class AIReasoningEngine {
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY || '';
-    this.modelName = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+    this.modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   }
 
   setApiKey(key) {
@@ -35,7 +35,7 @@ class AIReasoningEngine {
     let rcaReport = null;
     let geminiError = null;
 
-    // 2. Invoke Google Gemini LLM if key is configured
+    // 2. Invoke Google Gemini LLM using actual collected evidence
     if (this.apiKey && this.apiKey !== 'mock_key' && !this.apiKey.startsWith('demo_')) {
       try {
         logger.info(`Dispatching diagnostic inference to Gemini API (model: ${this.modelName})...`);
@@ -45,13 +45,20 @@ class AIReasoningEngine {
           generationConfig: {
             temperature: 0.2,
             topP: 0.8,
-            maxOutputTokens: 1024
+            maxOutputTokens: 4096,
+            responseMimeType: 'application/json'
           }
         });
 
         const prompt = `
 You are the Intelligent AIOps Engine, an expert incident diagnostic system for microservice architectures.
 CRITICAL CONSTRAINT: You must base your diagnosis, evidence citations, and root cause analysis EXCLUSIVELY on the detected Prometheus anomalies, Loki logs, and retrieved operational runbooks provided below. Do NOT invent metric values, hypothetical symptoms, or placeholder evidence.
+
+## Architecture & Dependency Topology:
+Client (5173) -> API Gateway (4000) -> [Auth (4003), Order (4001)] -> [Inventory (4004), Payment (4002)] -> MongoDB Cluster (27017)
+
+## Suspected Root Node:
+${rootCauseCandidate}
 
 ## Detected Telemetry Anomalies (from Prometheus):
 ${JSON.stringify(anomalies, null, 2)}
@@ -110,15 +117,15 @@ Output raw JSON only. Do not wrap in markdown tags.
         rcaReport.model = this.modelName;
       } catch (err) {
         geminiError = err.message;
-        console.warn(`[AI Reasoning] Gemini API call was not completed (${err.message}). Using live topological causal inference.`);
+        logger.error(`[AI Reasoning] Gemini API call failed: ${err.message}`);
       }
     } else {
       geminiError = 'Gemini API key is not configured in settings.';
     }
 
-    // 3. Honest, Telemetry-Backed Topological Causal Inference (No fake narratives)
+    // Explicit error state if Gemini API is unavailable (NO mock fallback per requirements)
     if (!rcaReport) {
-      rcaReport = this.generateTopologicalCausalInference(correlationResult, ragPassages, geminiError);
+      throw new Error(`Gemini RCA failed: ${geminiError || 'Inference error'}. Configure valid GEMINI_API_KEY to generate real root cause analysis.`);
     }
 
     return {

@@ -43,7 +43,8 @@ app.use((req, res, next) => {
 // 1. Health Endpoint
 app.get('/health', (req, res) => {
   const isHealthy = !failureState.active;
-  const status = isHealthy ? 'UP' : (failureState.mode === 'downstream_failure' ? 'DOWN' : 'DEGRADED');
+  const isDown = ['downstream_failure', 'payment_gateway_down'].includes(failureState.mode);
+  const status = isHealthy ? 'UP' : (isDown ? 'DOWN' : 'DEGRADED');
 
   const healthPayload = {
     status,
@@ -55,11 +56,11 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   };
 
-  if (!isHealthy && failureState.mode === 'downstream_failure') {
+  if (!isHealthy && isDown) {
     return res.status(503).json(healthPayload);
   }
 
-  return res.status(200).json(healthPayload);
+  return res.status(isHealthy ? 200 : 503).json(healthPayload);
 });
 
 // 2. Metrics Endpoint
@@ -155,23 +156,29 @@ app.post('/api/charge', async (req, res) => {
       });
     }
 
-    // Mode C: Downstream Failure / Process Unresponsive
-    paymentFailureTotal.inc({ reason: 'service_unresponsive' });
+    // Mode C: Downstream Failure / Process Unresponsive / 3rd-Party Gateway Down
+    const failReason = failureState.mode === 'payment_gateway_down' ? 'payment_gateway_503' : 'service_unresponsive';
+    const failMsg = failureState.mode === 'payment_gateway_down'
+      ? 'PaymentGatewayException: 3rd-party payment gateway 503 outage. Bank acquiring network unreachable.'
+      : 'ServiceUnavailable: Payment service worker unresponsive or deadlocked.';
+
+    paymentFailureTotal.inc({ reason: failReason });
     paymentRequestsTotal.inc({ route: '/api/charge', status_code: '503' });
 
     const elapsed = process.hrtime(startTime);
     const duration = elapsed[0] + elapsed[1] / 1e9;
     paymentRequestDurationSeconds.observe({ route: '/api/charge', status_code: '503' }, duration);
 
-    logger.error('Payment rejected: Service worker thread deadlocked', {
+    logger.error('Payment rejected: Downstream failure or 3rd-party outage', {
       orderId,
       amount,
+      reason: failReason,
       durationSeconds: duration
     });
 
     return res.status(503).json({
       success: false,
-      error: 'ServiceUnavailable: Payment service worker unresponsive or deadlocked.',
+      error: failMsg,
       orderId,
       failureMode: failureState.mode
     });

@@ -40,11 +40,16 @@ const savedSettings = storage.read('settings.json', {
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite'
 });
 
-if (savedSettings.geminiApiKey) {
+if (savedSettings.geminiApiKey && savedSettings.geminiApiKey !== 'your_gemini_api_key_here' && !savedSettings.geminiApiKey.startsWith('demo_')) {
   aiReasoning.setApiKey(savedSettings.geminiApiKey);
+} else if (process.env.GEMINI_API_KEY) {
+  aiReasoning.setApiKey(process.env.GEMINI_API_KEY);
 }
-if (savedSettings.geminiModel) {
+
+if (savedSettings.geminiModel && savedSettings.geminiModel !== 'gemini-3.5-flash-lite') {
   aiReasoning.modelName = savedSettings.geminiModel;
+} else if (process.env.GEMINI_MODEL) {
+  aiReasoning.modelName = process.env.GEMINI_MODEL;
 }
 
 // 1. Health & Configuration
@@ -111,7 +116,6 @@ function computeTopologyImpact(metricsData, currentScenario) {
 
   // Direct Database Failure:
   if (
-    scenario === 'db_overload' ||
     anomalies.some(a => a.service === 'database' || a.metric === 'mongodb_connection_pool_used' || (a.service === 'payment-service' && a.metric === 'payment_db_errors_total'))
   ) {
     directFaultMap['database'] = true;
@@ -119,11 +123,11 @@ function computeTopologyImpact(metricsData, currentScenario) {
 
   // Direct Payment Service Failure:
   if (
-    ['payment_gateway_down', 'high_cpu', 'downstream_failure'].includes(scenario) ||
     anomalies.some(a => a.service === 'payment-service' && (
       (a.metric === 'payment_failure_mode' && !a.description?.includes('db_overload')) ||
       (a.metric === 'payment_failure_total' && !directFaultMap['database']) ||
-      a.metric === 'nodejs_nodejs_eventloop_lag_p99_seconds'
+      a.metric === 'nodejs_nodejs_eventloop_lag_p99_seconds' ||
+      a.metric === 'payment_gateway_down'
     ))
   ) {
     directFaultMap['payment-service'] = true;
@@ -131,7 +135,6 @@ function computeTopologyImpact(metricsData, currentScenario) {
 
   // Direct Inventory Service Failure:
   if (
-    scenario === 'inventory_lock' ||
     anomalies.some(a => a.service === 'inventory-service' && (
       a.metric === 'inventory_failure_mode' ||
       a.metric === 'inventory_available_quantity' ||
@@ -143,7 +146,6 @@ function computeTopologyImpact(metricsData, currentScenario) {
 
   // Direct Auth Service Failure:
   if (
-    scenario === 'auth_storm' ||
     anomalies.some(a => a.service === 'auth-service' && (
       a.metric === 'auth_failure_mode' ||
       (a.metric === 'auth_failure_total' && a.value >= 10)
@@ -154,16 +156,20 @@ function computeTopologyImpact(metricsData, currentScenario) {
 
   // Direct Order Service Failure:
   if (
-    scenario === 'order_deadlock' ||
-    anomalies.some(a => a.service === 'order-service' && a.metric === 'order_failure_mode')
+    anomalies.some(a => a.service === 'order-service' && (
+      a.metric === 'order_failure_mode' ||
+      (a.metric === 'order_failure_total' && !anomalies.some(oa => oa.service === 'payment-service' || oa.service === 'inventory-service'))
+    ))
   ) {
     directFaultMap['order-service'] = true;
   }
 
   // Direct Gateway Service Failure:
   if (
-    ['gateway_outage', 'cache_stampede'].includes(scenario) ||
-    anomalies.some(a => a.service === 'gateway-service' && a.metric === 'gateway_failure_mode')
+    anomalies.some(a => a.service === 'gateway-service' && (
+      a.metric === 'gateway_failure_mode' ||
+      (a.metric === 'gateway_failure_total' && !anomalies.some(ga => ga.service === 'order-service' || ga.service === 'auth-service'))
+    ))
   ) {
     directFaultMap['gateway-service'] = true;
   }
@@ -1159,6 +1165,52 @@ app.delete('/api/rag/runbooks/:id', (req, res) => {
   if (!deleted) return res.status(404).json({ error: 'Runbook not found' });
   res.json({ success: true, message: `Runbook ${req.params.id} deleted.` });
 });
+
+// 9. Continuous Autonomous Telemetry & Incident Pipeline
+// Queries real Prometheus metrics / service probes every 2.5 seconds.
+// When a genuine telemetry anomaly is observed across microservices,
+// it correlates signals across the dependency graph and creates a real incident automatically.
+let isMonitoringCycleActive = false;
+setInterval(async () => {
+  if (isMonitoringCycleActive) return;
+  isMonitoringCycleActive = true;
+  try {
+    const metrics = await prometheusAdapter.queryMetrics();
+    const anomalies = metrics.anomalies || [];
+
+    if (anomalies.length > 0) {
+      const correlation = await correlationEngine.correlateSignals(metrics);
+      if (correlation.hasIncident && correlation.rootCauseCandidate) {
+        const rootCandidate = correlation.rootCauseCandidate;
+        const openIncidents = incidentManager.getAll({ status: 'OPEN' });
+        const existingIncident = openIncidents.find(i => i.service === rootCandidate);
+
+        if (!existingIncident) {
+          const primaryAnomaly = anomalies.find(a => a.service === rootCandidate) || anomalies[0];
+          const newIncident = incidentManager.createIncident({
+            title: `${primaryAnomaly.description}`,
+            service: rootCandidate,
+            severity: primaryAnomaly.severity || 'CRITICAL',
+            status: 'OPEN',
+            anomalies: anomalies,
+            description: `Automated detection from real Prometheus metrics: ${primaryAnomaly.description}`,
+            correlations: correlation
+          });
+
+          lokiAdapter.pushLog({
+            service: rootCandidate,
+            level: 'ERROR',
+            message: `[REAL_PIPELINE_ANOMALY] Incident #${newIncident.id} created from real metric anomaly on ${rootCandidate}: ${primaryAnomaly.metric}=${primaryAnomaly.value}`
+          });
+        }
+      }
+    }
+  } catch (err) {
+    logger.debug(`Autonomous monitoring cycle skipped: ${err.message}`);
+  } finally {
+    isMonitoringCycleActive = false;
+  }
+}, 2500);
 
 app.listen(port, () => {
   console.log(`[AIOps Core Engine] Listening on port ${port}`);

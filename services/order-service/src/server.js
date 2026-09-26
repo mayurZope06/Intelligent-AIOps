@@ -133,6 +133,28 @@ app.post('/api/orders', async (req, res) => {
   const startTime = process.hrtime();
   const { customerId, items, totalAmount, currency = 'USD' } = req.body;
 
+  // Active Failure Mode Execution (Real Order Service Circuit Breaker Failure)
+  if (failureState.active) {
+    const elapsed = process.hrtime(startTime);
+    const duration = elapsed[0] + elapsed[1] / 1e9;
+
+    orderRequestsTotal.inc({ route: '/api/orders', method: 'POST', status_code: '503' });
+    orderFailureTotal.inc({ reason: 'circuit_breaker_open' });
+    orderRequestDurationSeconds.observe({ route: '/api/orders', status_code: '503' }, duration);
+
+    logger.error('Order rejected: Circuit breaker open / order deadlock active', {
+      failureMode: failureState.mode,
+      customerId
+    });
+
+    return res.status(503).json({
+      success: false,
+      error: 'CircuitBreakerOpenException: Order Service circuit breaker is OPEN due to downstream transaction deadlock.',
+      statusCode: 503,
+      failureMode: failureState.mode
+    });
+  }
+
   if (!items || !Array.isArray(items) || items.length === 0 || totalAmount === undefined || totalAmount <= 0) {
     const elapsed = process.hrtime(startTime);
     const duration = elapsed[0] + elapsed[1] / 1e9;

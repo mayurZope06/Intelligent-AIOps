@@ -480,16 +480,18 @@ export default function App() {
         setAsyncActionStatus({
           type: 'remediate',
           phase: 'verified',
-          title: 'Remediation Verified Successful!',
+          title: 'Remediation Successful',
           message: res.data.message || 'Prometheus confirmed 0 active anomalies. Service returned to HEALTHY.'
         });
+        addToast('Remediation verified successful by Prometheus telemetry.', 'success', 'Remediation Successful');
       } else {
         setAsyncActionStatus({
           type: 'remediate',
           phase: 'unverified',
-          title: 'Remediation Unverified — Still Failing',
+          title: 'Remediation Failed / Recovery Not Confirmed',
           message: res.data?.message || 'Remediation executed, but Prometheus telemetry confirms service is STILL FAILING.'
         });
+        addToast('Remediation executed, but recovery could not be confirmed by telemetry.', 'error', 'Recovery Not Confirmed');
       }
     } catch (err) {
       clearTimeout(timeoutIndicator);

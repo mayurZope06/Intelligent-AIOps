@@ -137,6 +137,43 @@ app.post('/api/v1/checkout', async (req, res) => {
   const startTime = process.hrtime();
   const { customerId, items, totalAmount, currency = 'USD', paymentMethod } = req.body;
 
+  // Active Failure Mode Execution (Real Gateway Failure)
+  if (failureState.active) {
+    const elapsed = process.hrtime(startTime);
+    const duration = elapsed[0] + elapsed[1] / 1e9;
+
+    if (failureState.mode === 'gateway_outage') {
+      gatewayRequestsTotal.inc({ route: '/api/v1/checkout', method: 'POST', status_code: '502' });
+      gatewayFailureTotal.inc({ reason: 'gateway_outage' });
+      gatewayCheckoutErrorsTotal.inc();
+      gatewayRequestDurationSeconds.observe({ route: '/api/v1/checkout', status_code: '502' }, duration);
+
+      logger.error('Gateway outage: 502 Bad Gateway', { failureMode: 'gateway_outage' });
+      return res.status(502).json({
+        success: false,
+        error: 'Bad Gateway: API Gateway 502 Outage. Ingress proxy encountered critical unhandled failure.',
+        statusCode: 502,
+        failureMode: 'gateway_outage'
+      });
+    }
+
+    if (failureState.mode === 'cache_stampede') {
+      await new Promise(r => setTimeout(r, 120));
+      gatewayRequestsTotal.inc({ route: '/api/v1/checkout', method: 'POST', status_code: '504' });
+      gatewayFailureTotal.inc({ reason: 'cache_stampede' });
+      gatewayCheckoutErrorsTotal.inc();
+      gatewayRequestDurationSeconds.observe({ route: '/api/v1/checkout', status_code: '504' }, duration);
+
+      logger.error('Gateway cache stampede: 504 Gateway Timeout', { failureMode: 'cache_stampede' });
+      return res.status(504).json({
+        success: false,
+        error: 'Gateway Timeout: Ingress cache stampede and concurrency thread exhaustion.',
+        statusCode: 504,
+        failureMode: 'cache_stampede'
+      });
+    }
+  }
+
   // Basic validation of ingress request
   if (!items || !Array.isArray(items) || items.length === 0 || totalAmount === undefined || totalAmount <= 0) {
     const elapsed = process.hrtime(startTime);
