@@ -177,7 +177,7 @@ $$C^* = \arg\max_{v \in V_{\text{anomalous}}} \text{depth}(v)$$
 
 > **Example:** If `payment-service`, `order-service`, and `gateway-service` simultaneously report anomalies, the engine isolates `payment-service` as the **Root Cause** because $\text{depth}(\text{payment}) > \text{depth}(\text{order}) > \text{depth}(\text{gateway})$, correctly categorizing `order-service` and `gateway-service` as **Cascading Symptoms**.
 
----
+--- 
 
 ### 2. Standard Operating Procedure (RAG) Matching
 Incoming incident telemetry tokens $S_{\text{incident}}$ are paired against pre-indexed operational SOPs $R_i \in \mathcal{R}$ using multi-keyword n-gram token overlap and semantic relevance scoring:
@@ -262,7 +262,7 @@ Follow this 5-step operational walkthrough to evaluate the full automated lifecy
 
 ---
 
-## 📂 Project Directory Structure
+## 📂 Project Directory Structure 
 
 ```bash
 Intelligent-AIOps/
