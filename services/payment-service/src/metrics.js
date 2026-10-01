@@ -7,7 +7,7 @@ const register = new client.Registry();
 client.collectDefaultMetrics({
   register,
   prefix: 'nodejs_'
-});
+}); 
 
 // Custom payment service metrics
 const paymentRequestsTotal = new client.Counter({
