@@ -29,7 +29,7 @@ scrape_configs:
     static_configs:
       - targets: ['auth-service:4003']
         labels:
-          service: 'auth-service'
+          service: 'auth-service' 
 
   - job_name: 'inventory-service'
     metrics_path: '/metrics'
