@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. API Gateway (Public Ingress)
+  # 1. API Gateway (Public Ingress) 
   gateway-service:
     build:
       context: ./services/gateway-service
