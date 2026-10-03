@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'; 
 import { Cpu, X, ShieldAlert, CheckCircle2, ArrowRight, Play, BookOpen, Layers } from 'lucide-react';
 
 export default function RCAModal({
