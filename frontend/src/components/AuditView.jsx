@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { History, ShieldCheck, CheckCircle2, Search, Filter } from 'lucide-react';
 
-export default function AuditView({ auditLogs }) {
+export default function  AuditView({ auditLogs }) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredLogs = auditLogs.filter(log =>
