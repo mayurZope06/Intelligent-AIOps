@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, X, Key, Cpu, CheckCircle2, Shield } from 'lucide-react';
 
-export default function SettingsModal({
+export default function SettingsModal({ 
   isOpen,
   onClose,
   settingsStatus,
