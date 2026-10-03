@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, Activity, RefreshCw, Search, Filter, Server, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Terminal, Activity, RefreshCw, Search, Filter, Server, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react'; 
 
 export default function TelemetryView({
   metricsData,
