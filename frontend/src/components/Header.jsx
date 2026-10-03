@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'; 
 import {  
   Activity, Layers, AlertCircle, Terminal, BookOpen, 
   History, Settings, Cpu, RefreshCw 
