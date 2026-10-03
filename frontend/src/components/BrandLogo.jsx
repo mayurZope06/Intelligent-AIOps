@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-/**
+/** 
  * Creative Brand Logo for Intelligent AIOps
  * Renders the glowing cybernetic neural en brain & telemetry wave emblem with ambient backlighting.
  */
