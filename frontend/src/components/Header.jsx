@@ -1,5 +1,5 @@
 import React from 'react';
-import { 
+import {  
   Activity, Layers, AlertCircle, Terminal, BookOpen, 
   History, Settings, Cpu, RefreshCw 
 } from 'lucide-react';
