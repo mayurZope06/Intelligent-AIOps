@@ -4,7 +4,7 @@
 
 ### Autonomous Observability, Cross-Boundary Telemetry Correlation & Generative AI Root Cause Analysis
 
-[![React](https://img.shields.io/badge/Frontend-React%2018%20%7C%20Vite-61dafb?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![React](https://img.shields.io/badge/Frontend-React%2018%20%7C%20Vite-61dafb?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/) 
 [![Node.js](https://img.shields.io/badge/Backend-Node.js%20%7C%20Express-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Prometheus](https://img.shields.io/badge/Telemetry-Prometheus%20Server-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](https://prometheus.io/)
