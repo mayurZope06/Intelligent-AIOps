@@ -1,7 +1,7 @@
 <div align="center">
 
 # Intelligent AIOps Platform for Automated Incident Detection and Root Cause Analysis in Distributed Systems 
-
+ 
 ### Autonomous Observability, Cross-Boundary Telemetry Correlation & Generative AI Root Cause Analysis
 
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%7C%20Vite-61dafb?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/) 
