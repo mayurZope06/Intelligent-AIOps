@@ -1,7 +1,7 @@
 // Orchestrates and starts all 5 microservices as direct Node.js processes
 const { spawn } = require('child_process');
 const path = require('path');
-const http = require('http');
+const http = require('http');  
 
 const SERVICES = [
   { name: 'gateway-service', port: 4000, dir: 'gateway-service' },
