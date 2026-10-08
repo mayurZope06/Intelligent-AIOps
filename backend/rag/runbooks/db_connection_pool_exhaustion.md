@@ -3,7 +3,7 @@
 ## Identification & Symptoms
 - **Alert Trigger**: `payment_db_errors_total > 0` or `payment_active_connections == max_connections`.
 - **Primary Signals**: MongoDB driver throws `E_CONN_POOL_EXHAUSTED` or `AcquireConnection timeout after 5000ms`.
-- **Cascading Symptoms**: Downstream HTTP 503 Service Unavailable returned to Order Service; Gateway surfaces 502 Bad Gateway to checkout customers.
+- **Cascading Symptoms**: Downstream HTTP 503 Service Unavailable returned to Order Service; Gateway surfaces 502 Bad Gateway to checkout customers. 
 
 ## Root Cause Analysis
 Database connection pool exhaustion occurs when incoming concurrent payment transactions lease connections faster than the pool can release or return them to the idle queue. When all available sockets (max: 100) are saturated by unindexed queries or zombie connections, all pending transactions timeout waiting for an available socket.
