@@ -1,7 +1,7 @@
 # Standard Operating Procedure: High CPU & Resource Throttling
 
 ## Identification & Symptoms
-- **Alert Trigger**: `payment_cpu_utilization_ratio > 0.85` (85% sustained CPU load) for > 1 minute.
+- **Alert Trigger**:  `payment_cpu_utilization_ratio > 0.85` (85% sustained CPU load) for > 1 minute.
 - **Primary Signals**: Event loop lag metrics spike (> 500ms); process throughput drops sharply.
 - **Cascading Symptoms**: Request queueing; elevated response times across dependent order transactions.
 
