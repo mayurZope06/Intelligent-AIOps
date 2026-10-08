@@ -1,7 +1,7 @@
 # Standard Operating Procedure: Distributed Inventory Lock Deadlock
 
 ## Identification & Symptoms
-- **Alert Trigger**: `inventory_lock_wait_seconds > 5.0` or `order_stock_reservation_timeouts_total > 10`.
+- **Alert Trigger**:  `inventory_lock_wait_seconds > 5.0` or `order_stock_reservation_timeouts_total > 10`.
 - **Primary Signals**: Database driver throws `LockWaitTimeoutException: Deadlock found when trying to get lock for stock SKU allocation`.
 - **Cascading Symptoms**: `order-service` checkout thread pool exhausted; Gateway returns 504 Gateway Timeout on user checkout submissions.
 
