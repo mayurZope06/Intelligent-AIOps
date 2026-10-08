@@ -8,7 +8,7 @@ class RAGEngine {
     this.chunks = [];
     this.ensureDirectory();
     this.loadAndIndexRunbooks();
-  }
+  } 
 
   ensureDirectory() {
     if (!fs.existsSync(this.runbooksDir)) {
