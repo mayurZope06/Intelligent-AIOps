@@ -1,4 +1,4 @@
-# Standard Operating Procedure: Redis Cache Avalanche & Eviction Storm
+# Standard Operating Procedure: Redis Cache Avalanche & Eviction Storm 
 
 ## Identification & Symptoms
 - **Alert Trigger**: `redis_memory_utilization_ratio > 0.90` or `redis_evictions_per_sec > 1000`.
