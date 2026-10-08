@@ -1,6 +1,6 @@
 # Standard Operating Procedure: Service Timeout & Cascading Latency
 
-## Identification & Symptoms
+## Identification & Symptoms 
 - **Alert Trigger**: `order_http_request_duration_ms_bucket{le="2000"} < 0.8` or p95 latency > 3000ms.
 - **Primary Signals**: Log messages indicating `timeout of 4000ms exceeded` on inter-service HTTP requests.
 - **Cascading Symptoms**: API Gateway times out awaiting Order Service; thread pools become blocked waiting on synchronous downstream RPCs.
