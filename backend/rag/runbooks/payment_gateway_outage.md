@@ -1,4 +1,4 @@
-# Standard Operating Procedure: Third-Party Payment Gateway Outage
+# Standard Operating Procedure: Third-Party Payment Gateway Outage 
 
 ## Identification & Symptoms
 - **Alert Trigger**: `external_gateway_http_status >= 500` or `circuit_breaker_state == 'OPEN'`.
