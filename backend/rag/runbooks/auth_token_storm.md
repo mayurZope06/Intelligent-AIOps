@@ -1,6 +1,6 @@
 # Standard Operating Procedure: Auth Token Verification Storm & CPU Throttling
 
-## Identification & Symptoms
+## Identification & Symptoms 
 - **Alert Trigger**: `auth_cpu_utilization_ratio > 0.90` and `gateway_auth_rejections_total > 50`.
 - **Primary Signals**: Event loop latency on `auth-service` exceeds 600ms; thread pool saturated with asymmetric cryptographic RSA signature validations.
 - **Cascading Symptoms**: Gateway proxy rejects valid customer requests with HTTP 401 Unauthorized or 504 Timeout; mobile/web clients experience sudden logout.
