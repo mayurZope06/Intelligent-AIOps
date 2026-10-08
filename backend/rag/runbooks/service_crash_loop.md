@@ -1,5 +1,5 @@
 # Standard Operating Procedure: Service Crash Loop & Fatal Terminations
-
+ 
 ## Identification & Symptoms
 - **Alert Trigger**: Container exit status `CrashLoopBackOff`, exit code `137` (OOM) or `139` (SIGSEGV).
 - **Primary Signals**: Process unhandled exception or unhandled promise rejection logs.
