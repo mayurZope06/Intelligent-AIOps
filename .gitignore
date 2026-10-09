@@ -9,7 +9,7 @@ services/*/node_modules/
 backend/.env
 frontend/.env
 *.env.local
-
+  
 # Build artifacts
 frontend/dist/
 dist/
