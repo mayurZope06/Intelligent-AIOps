@@ -37,3 +37,4 @@ scrape_configs:
       - targets: ['inventory-service:4004']
         labels:
           service: 'inventory-service'
+ 
