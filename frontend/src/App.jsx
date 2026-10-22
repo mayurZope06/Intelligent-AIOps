@@ -23,7 +23,7 @@ const DEFAULT_NODES = [
     type: 'serviceNode',
     position: { x: 50, y: 220 },
     data: { id: 'frontend', name: 'Client / Web Frontend', status: 'HEALTHY', port: 5173, team: 'Frontend Platform', type: 'client' }
-  },
+  }, 
   {
     id: 'gateway-service',
     type: 'serviceNode',
