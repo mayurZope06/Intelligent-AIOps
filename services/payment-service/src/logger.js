@@ -6,7 +6,7 @@ const formatLog = (level, event, meta = {}) => {
     service: 'payment-service',
     level: level.toUpperCase(),
     event,
-    ...meta
+    ...meta   
   };
   return JSON.stringify(logObj);
 };
