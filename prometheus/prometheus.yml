@@ -8,7 +8,7 @@ scrape_configs:
     static_configs:
       - targets: ['gateway-service:4000']
         labels:
-          service: 'gateway-service'
+          service: 'gateway-service' 
 
   - job_name: 'order-service'
     metrics_path: '/metrics'
