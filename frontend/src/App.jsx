@@ -4,7 +4,7 @@ import axios from 'axios';
 import { MarkerType } from 'reactflow';
 
 // Modular Apple-style Components
-import Header from './components/Header';
+import Header from './components/Header'; 
 import TopologyView from './components/TopologyView';
 import IncidentsView from './components/IncidentsView';
 import TelemetryView from './components/TelemetryView';
