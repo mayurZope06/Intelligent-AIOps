@@ -6,7 +6,7 @@ const register = new client.Registry();
 // Default Node.js runtime process metrics
 client.collectDefaultMetrics({
   register,
-  prefix: 'nodejs_'
+  prefix: 'nodejs_' 
 
 });
 
