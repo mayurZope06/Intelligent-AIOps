@@ -11,7 +11,7 @@ const formatLog = (level, event, meta = {}) => {
   return JSON.stringify(logObj);
 };
 
-const logger = {
+const logger = { 
   info: (event, meta) => {
     console.log(formatLog('info', event, meta));
   },
