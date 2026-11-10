@@ -16,7 +16,7 @@ const port = process.env.PORT || 4004;
 
 app.use(express.json());
 
-// Failure simulation state
+// Failure simulation stat
 const failureState = {
   active: false,
   mode: 'none',
