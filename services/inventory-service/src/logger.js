@@ -1,4 +1,4 @@
-// Structured JSON / Monospace logger for Inventory Service
+// Structured JSON / Monospace logger for Inventory Service   
 
 const formatLog = (level, event, meta = {}) => {
   const logObj = {
