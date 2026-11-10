@@ -3,7 +3,7 @@ const logger = require('./logger');
 const {
   register,
   inventoryRequestsTotal,
-  inventoryReservationsTotal,
+  inventoryReservationsTotal, 
   inventoryReleasesTotal,
   inventoryFailuresTotal,
   inventoryFailureMode,
