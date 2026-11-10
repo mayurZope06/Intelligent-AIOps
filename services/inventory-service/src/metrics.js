@@ -7,6 +7,7 @@ const register = new client.Registry();
 client.collectDefaultMetrics({
   register,
   prefix: 'nodejs_'
+
 });
 
 // Custom Inventory Service metrics
