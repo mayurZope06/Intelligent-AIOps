@@ -2,7 +2,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const ragEngine = require('../rag/ragEngine');
 const logger = require('../utils/logger')('AIReasoning');
 
-class AIReasoningEngine {
+class AIReasoningEngine { 
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY || '';
     this.modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
