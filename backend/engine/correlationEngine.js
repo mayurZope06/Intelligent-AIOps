@@ -1,6 +1,6 @@
 const dependencyTopology = require('../config/topology'); 
 const prometheusAdapter = require('../adapters/prometheusAdapter');
-const lokiAdapter = require('../adapters/lokiAdapter');
+const lokiAdapter = require('../adapters/lokiAdapter'); 
 const logger = require('../utils/logger')('CorrelationEngine');
 
 class CorrelationEngine {
