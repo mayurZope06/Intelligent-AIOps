@@ -3,7 +3,7 @@
 ## Identification & Symptoms
 - **Alert Trigger**:  `payment_cpu_utilization_ratio > 0.85` (85% sustained CPU load) for > 1 minute.
 - **Primary Signals**: Event loop lag metrics spike (> 500ms); process throughput drops sharply.
-- **Cascading Symptoms**: Request queueing; elevated response times across dependent order transactions. 
+- **Cascading Symptoms**: Request queueing; elevated response times across dependent order transactions.
 
 ## Root Cause Analysis
 High CPU utilization is caused by heavy cryptographic routines, unoptimized JSON serialization, or continuous garbage collection cycles due to memory pressure. In Node.js services, a saturated event loop halts asynchronous I/O dispatching.
