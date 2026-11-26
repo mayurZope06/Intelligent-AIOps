@@ -1,4 +1,4 @@
-# Standard Operating Procedure: Database Connection Pool Exhaustion
+# Standard Operating Procedure: Database Connection Pool Exhaustion 
 
 ## Identification & Symptoms
 - **Alert Trigger**: `payment_db_errors_total > 0` or `payment_active_connections == max_connections`.
