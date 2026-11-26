@@ -1,4 +1,4 @@
-# Standard Operating Procedure: Service Timeout & Cascading Latency
+# Standard Operating Procedure: Service Timeout & Cascading Latency 
 
 ## Identification & Symptoms 
 - **Alert Trigger**: `order_http_request_duration_ms_bucket{le="2000"} < 0.8` or p95 latency > 3000ms.
