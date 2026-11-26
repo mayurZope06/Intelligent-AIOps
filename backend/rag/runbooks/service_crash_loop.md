@@ -1,4 +1,4 @@
-# Standard Operating Procedure: Service Crash Loop & Fatal Terminations
+# Standard Operating Procedure: Service Crash Loop & Fatal Terminations 
  
 ## Identification & Symptoms
 - **Alert Trigger**: Container exit status `CrashLoopBackOff`, exit code `137` (OOM) or `139` (SIGSEGV).
